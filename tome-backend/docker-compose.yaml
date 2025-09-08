@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:latest
+    environment:
+      POSTGRES_USER: myuser 
+      POSTGRES_PASSWORD: secret 
+      POSTGRES_DB: tomedb 
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  users:
+    image: "safegergis/tome-users" 
+    build:
+      context:
+        ./tome-users/.
+    depends_on:
+      - db
+    ports:
+      - "8080:8080"
+volumes:
+  pgdata:
+
