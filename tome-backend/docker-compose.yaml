@@ -4,13 +4,14 @@ services:
   db:
     image: postgres:latest
     environment:
-      POSTGRES_USER: myuser 
-      POSTGRES_PASSWORD: secret 
-      POSTGRES_DB: tomedb 
+      POSTGRES_USER: myuser
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: tomedb
     ports:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
 
   users:
     image: "safegergis/tome-users" 
