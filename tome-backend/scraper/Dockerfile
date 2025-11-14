@@ -3,6 +3,7 @@ FROM python:3.11-slim
 
 # Set working directory
 WORKDIR /app
+RUN mkdir -p /app/logs/
 
 # Install system dependencies for psycopg2
 RUN apt-get update && apt-get install -y \

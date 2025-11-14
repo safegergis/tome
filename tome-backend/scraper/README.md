@@ -88,8 +88,6 @@ docker-compose up -d
 - **`setup.sh`** - Automated setup script
 - **`migrations/add_hardcover_tracking.sql`** - Database migration
 - **`HARDCOVER_SCHEMA.md`** - Hardcover API schema reference
-- **`DEPLOYMENT.md`** - Complete deployment guide
-- **`verify_import.py`** - Database verification script
 
 ## Documentation
 

@@ -14,15 +14,17 @@ CREATE TABLE IF NOT EXISTS authors (
     id BIGSERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     bio TEXT,
-    birth_date DATE,
-    death_date DATE,
+    birth_year INTEGER,
+    death_year INTEGER,
     photo_url VARCHAR(500),
     external_id VARCHAR(255),
     external_source VARCHAR(50),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT death_after_birth CHECK (death_date IS NULL OR birth_date IS NULL OR death_date > birth_date),
+    CONSTRAINT death_after_birth_year CHECK (death_year IS NULL OR birth_year IS NULL OR death_year > birth_year),
+    CONSTRAINT valid_birth_year CHECK (birth_year IS NULL OR (birth_year >= 1000 AND birth_year <= 2100)),
+    CONSTRAINT valid_death_year CHECK (death_year IS NULL OR (death_year >= 1000 AND death_year <= 2100)),
     CONSTRAINT valid_author_external_source CHECK (external_source IN ('hardcover', 'google_books', 'open_library', 'goodreads') OR external_source IS NULL)
 );
 

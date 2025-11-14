@@ -1,6 +1,5 @@
 package com.safegergis.tome_content.modal;
 
-import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.HashSet;
 import java.util.Set;
@@ -38,11 +37,11 @@ public class Author {
     @Column(columnDefinition = "TEXT")
     private String bio;
 
-    @Column(name = "birth_date")
-    private LocalDate birthDate;
+    @Column(name = "birth_year")
+    private Integer birthYear;
 
-    @Column(name = "death_date")
-    private LocalDate deathDate;
+    @Column(name = "death_year")
+    private Integer deathYear;
 
     @Column(name = "photo_url", length = 500)
     private String photoUrl;
