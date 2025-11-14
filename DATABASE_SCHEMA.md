@@ -20,7 +20,7 @@ Stores user account information.
 
 ```sql
 CREATE TABLE users (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id BIGSERIAL PRIMARY KEY,
     username VARCHAR(50) UNIQUE NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
@@ -38,7 +38,7 @@ CREATE INDEX idx_users_email ON users(email) WHERE deleted_at IS NULL;
 ```
 
 **Columns:**
-- `id`: Unique user identifier (UUID)
+- `id`: Unique user identifier (auto-incrementing BIGINT)
 - `username`: Unique username (min 3 characters)
 - `email`: Unique email address
 - `password_hash`: Hashed password (use bcrypt/argon2)
@@ -55,7 +55,7 @@ Stores specific book editions with ISBN identifiers.
 
 ```sql
 CREATE TABLE books (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id BIGSERIAL PRIMARY KEY,
     title VARCHAR(500) NOT NULL,
     subtitle VARCHAR(500),
     isbn_10 VARCHAR(10) UNIQUE,
@@ -66,23 +66,27 @@ CREATE TABLE books (
     language VARCHAR(10) DEFAULT 'en',
     description TEXT,
     cover_url VARCHAR(500),
+    external_source VARCHAR(50),
+    external_id VARCHAR(100),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT isbn_10_format CHECK (isbn_10 ~* '^[0-9]{10}$' OR isbn_10 IS NULL),
     CONSTRAINT isbn_13_format CHECK (isbn_13 ~* '^[0-9]{13}$' OR isbn_13 IS NULL),
     CONSTRAINT at_least_one_isbn CHECK (isbn_10 IS NOT NULL OR isbn_13 IS NOT NULL),
-    CONSTRAINT page_count_positive CHECK (page_count > 0)
-); 
+    CONSTRAINT page_count_positive CHECK (page_count > 0),
+    UNIQUE(external_source, external_id)
+);
 
 CREATE INDEX idx_books_isbn_10 ON books(isbn_10) WHERE isbn_10 IS NOT NULL;
 CREATE INDEX idx_books_isbn_13 ON books(isbn_13) WHERE isbn_13 IS NOT NULL;
 CREATE INDEX idx_books_title ON books USING gin(to_tsvector('english', title));
 CREATE INDEX idx_books_published_date ON books(published_date);
+CREATE INDEX idx_books_external ON books(external_source, external_id) WHERE external_source IS NOT NULL;
 ```
 
 **Columns:**
-- `id`: Unique book identifier (UUID)
+- `id`: Unique book identifier (auto-incrementing BIGINT)
 - `title`: Book title (required)
 - `subtitle`: Book subtitle (optional)
 - `isbn_10`: ISBN-10 identifier (unique, 10 digits)
@@ -93,12 +97,15 @@ CREATE INDEX idx_books_published_date ON books(published_date);
 - `language`: ISO 639-1 language code (default: 'en')
 - `description`: Book synopsis/description
 - `cover_url`: Book cover image URL
+- `external_source`: Source of the book data (e.g., 'hardcover', 'google_books', 'openlibrary')
+- `external_id`: ID from the external source (e.g., Hardcover edition ID)
 - `created_at`: Record creation timestamp
 - `updated_at`: Last update timestamp
 
 **Notes:**
 - At least one ISBN (ISBN-10 or ISBN-13) is required
 - Both ISBNs are unique to ensure specific editions
+- `external_source` + `external_id` combination is unique (prevents duplicate imports)
 
 ---
 
@@ -108,28 +115,34 @@ Stores author information.
 
 ```sql
 CREATE TABLE authors (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id BIGSERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     bio TEXT,
     birth_date DATE,
     death_date DATE,
     photo_url VARCHAR(500),
+    external_source VARCHAR(50),
+    external_id VARCHAR(100),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT death_after_birth CHECK (death_date IS NULL OR birth_date IS NULL OR death_date > birth_date)
+    CONSTRAINT death_after_birth CHECK (death_date IS NULL OR birth_date IS NULL OR death_date > birth_date),
+    UNIQUE(external_source, external_id)
 );
 
 CREATE INDEX idx_authors_name ON authors USING gin(to_tsvector('english', name));
+CREATE INDEX idx_authors_external ON authors(external_source, external_id) WHERE external_source IS NOT NULL;
 ```
 
 **Columns:**
-- `id`: Unique author identifier (UUID)
+- `id`: Unique author identifier (auto-incrementing BIGINT)
 - `name`: Author's full name
 - `bio`: Author biography
 - `birth_date`: Date of birth
 - `death_date`: Date of death (NULL if alive)
 - `photo_url`: Author photo URL
+- `external_source`: Source of the author data (e.g., 'hardcover', 'google_books')
+- `external_id`: ID from the external source (e.g., Hardcover author ID)
 - `created_at`: Record creation timestamp
 - `updated_at`: Last update timestamp
 
@@ -141,8 +154,8 @@ Junction table for books and authors (many-to-many).
 
 ```sql
 CREATE TABLE book_authors (
-    book_id UUID NOT NULL REFERENCES books(id) ON DELETE CASCADE,
-    author_id UUID NOT NULL REFERENCES authors(id) ON DELETE CASCADE,
+    book_id BIGINT NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+    author_id BIGINT NOT NULL REFERENCES authors(id) ON DELETE CASCADE,
     author_order INTEGER NOT NULL DEFAULT 1,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
 
@@ -154,8 +167,8 @@ CREATE INDEX idx_book_authors_author_id ON book_authors(author_id);
 ```
 
 **Columns:**
-- `book_id`: Reference to books table
-- `author_id`: Reference to authors table
+- `book_id`: Reference to books table (BIGINT)
+- `author_id`: Reference to authors table (BIGINT)
 - `author_order`: Order of author listing (1 for primary author, 2+ for co-authors)
 - `created_at`: Record creation timestamp
 
@@ -167,7 +180,7 @@ Stores genre categories.
 
 ```sql
 CREATE TABLE genres (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id BIGSERIAL PRIMARY KEY,
     name VARCHAR(100) UNIQUE NOT NULL,
     description TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -177,7 +190,7 @@ CREATE INDEX idx_genres_name ON genres(name);
 ```
 
 **Columns:**
-- `id`: Unique genre identifier (UUID)
+- `id`: Unique genre identifier (auto-incrementing BIGINT)
 - `name`: Genre name (e.g., "Science Fiction", "Romance", "Classic")
 - `description`: Genre description
 - `created_at`: Record creation timestamp
@@ -190,8 +203,8 @@ Junction table for books and genres (many-to-many).
 
 ```sql
 CREATE TABLE book_genres (
-    book_id UUID NOT NULL REFERENCES books(id) ON DELETE CASCADE,
-    genre_id UUID NOT NULL REFERENCES genres(id) ON DELETE CASCADE,
+    book_id BIGINT NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+    genre_id BIGINT NOT NULL REFERENCES genres(id) ON DELETE CASCADE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
 
     PRIMARY KEY (book_id, genre_id)
@@ -201,8 +214,8 @@ CREATE INDEX idx_book_genres_genre_id ON book_genres(genre_id);
 ```
 
 **Columns:**
-- `book_id`: Reference to books table
-- `genre_id`: Reference to genres table
+- `book_id`: Reference to books table (BIGINT)
+- `genre_id`: Reference to genres table (BIGINT)
 - `created_at`: Record creation timestamp
 
 ---
@@ -215,9 +228,9 @@ Tracks user's reading status and progress for each book.
 CREATE TYPE reading_status AS ENUM ('want-to-read', 'currently-reading', 'read');
 
 CREATE TABLE user_books (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    book_id UUID NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    book_id BIGINT NOT NULL REFERENCES books(id) ON DELETE CASCADE,
     status reading_status NOT NULL,
     progress INTEGER DEFAULT 0,
     personal_rating INTEGER,
@@ -239,9 +252,9 @@ CREATE INDEX idx_user_books_book_id ON user_books(book_id);
 ```
 
 **Columns:**
-- `id`: Unique record identifier (UUID)
-- `user_id`: Reference to users table
-- `book_id`: Reference to books table
+- `id`: Unique record identifier (auto-incrementing BIGINT)
+- `user_id`: Reference to users table (BIGINT)
+- `book_id`: Reference to books table (BIGINT)
 - `status`: Reading status (want-to-read, currently-reading, read)
 - `progress`: Reading progress percentage (0-100)
 - `personal_rating`: User's rating (1-5 stars, optional)
@@ -264,9 +277,9 @@ Stores public user reviews of books.
 
 ```sql
 CREATE TABLE reviews (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    book_id UUID NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    book_id BIGINT NOT NULL REFERENCES books(id) ON DELETE CASCADE,
     rating INTEGER NOT NULL,
     content TEXT NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -285,9 +298,9 @@ CREATE INDEX idx_reviews_created_at ON reviews(created_at DESC) WHERE deleted_at
 ```
 
 **Columns:**
-- `id`: Unique review identifier (UUID)
-- `user_id`: Reference to users table (reviewer)
-- `book_id`: Reference to books table
+- `id`: Unique review identifier (auto-incrementing BIGINT)
+- `user_id`: Reference to users table (reviewer) (BIGINT)
+- `book_id`: Reference to books table (BIGINT)
 - `rating`: Rating (1-5 stars, required)
 - `content`: Review text (minimum 10 characters)
 - `created_at`: Review creation timestamp
@@ -307,8 +320,8 @@ Stores user-created book lists.
 
 ```sql
 CREATE TABLE lists (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
     description TEXT,
     is_public BOOLEAN DEFAULT false,
@@ -325,8 +338,8 @@ CREATE INDEX idx_lists_created_at ON lists(created_at DESC) WHERE deleted_at IS 
 ```
 
 **Columns:**
-- `id`: Unique list identifier (UUID)
-- `user_id`: Reference to users table (list owner)
+- `id`: Unique list identifier (auto-incrementing BIGINT)
+- `user_id`: Reference to users table (list owner) (BIGINT)
 - `name`: List name (required)
 - `description`: List description (optional)
 - `is_public`: Whether list is publicly visible
@@ -342,8 +355,8 @@ Junction table for lists and books (many-to-many).
 
 ```sql
 CREATE TABLE list_books (
-    list_id UUID NOT NULL REFERENCES lists(id) ON DELETE CASCADE,
-    book_id UUID NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+    list_id BIGINT NOT NULL REFERENCES lists(id) ON DELETE CASCADE,
+    book_id BIGINT NOT NULL REFERENCES books(id) ON DELETE CASCADE,
     book_order INTEGER NOT NULL,
     added_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
 
@@ -356,8 +369,8 @@ CREATE INDEX idx_list_books_order ON list_books(list_id, book_order);
 ```
 
 **Columns:**
-- `list_id`: Reference to lists table
-- `book_id`: Reference to books table
+- `list_id`: Reference to lists table (BIGINT)
+- `book_id`: Reference to books table (BIGINT)
 - `book_order`: Position of book in list (1, 2, 3, ...)
 - `added_at`: When book was added to list
 
@@ -543,10 +556,9 @@ LIMIT 20;
 ## Migration Notes
 
 1. **Create ENUM type first** before creating `user_books` table
-2. **Enable UUID extension**: `CREATE EXTENSION IF NOT EXISTS "pgcrypto";`
-3. **Run migrations in order**: users → books → authors → genres → junction tables → reviews/lists
-4. **Seed genres table** with common book genres
-5. **Consider triggers** for auto-updating `updated_at` timestamps:
+2. **Run migrations in order**: users → books → authors → genres → junction tables → reviews/lists
+3. **Seed genres table** with common book genres
+4. **Consider triggers** for auto-updating `updated_at` timestamps:
 
 ```sql
 CREATE OR REPLACE FUNCTION update_updated_at_column()

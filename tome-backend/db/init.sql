@@ -5,16 +5,13 @@
 -- for the Tome reading tracking application.
 -- =====================================================
 
--- Enable UUID extension
-CREATE EXTENSION IF NOT EXISTS "pgcrypto";
-
 -- =====================================================
 -- TABLE: authors
 -- Stores author information
 -- =====================================================
 
 CREATE TABLE IF NOT EXISTS authors (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id BIGSERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     bio TEXT,
     birth_date DATE,
@@ -39,7 +36,7 @@ CREATE INDEX IF NOT EXISTS idx_authors_external_id ON authors(external_id) WHERE
 -- =====================================================
 
 CREATE TABLE IF NOT EXISTS genres (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id BIGSERIAL PRIMARY KEY,
     name VARCHAR(100) UNIQUE NOT NULL,
     description TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -53,7 +50,7 @@ CREATE INDEX IF NOT EXISTS idx_genres_name ON genres(name);
 -- =====================================================
 
 CREATE TABLE IF NOT EXISTS books (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id BIGSERIAL PRIMARY KEY,
     title VARCHAR(500) NOT NULL,
     subtitle VARCHAR(500),
     isbn_10 VARCHAR(10) UNIQUE,
@@ -89,8 +86,8 @@ CREATE INDEX IF NOT EXISTS idx_books_external_id ON books(external_id) WHERE ext
 -- =====================================================
 
 CREATE TABLE IF NOT EXISTS book_authors (
-    book_id UUID NOT NULL REFERENCES books(id) ON DELETE CASCADE,
-    author_id UUID NOT NULL REFERENCES authors(id) ON DELETE CASCADE,
+    book_id BIGINT NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+    author_id BIGINT NOT NULL REFERENCES authors(id) ON DELETE CASCADE,
     author_order INTEGER NOT NULL DEFAULT 1,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
 
@@ -106,8 +103,8 @@ CREATE INDEX IF NOT EXISTS idx_book_authors_author_id ON book_authors(author_id)
 -- =====================================================
 
 CREATE TABLE IF NOT EXISTS book_genres (
-    book_id UUID NOT NULL REFERENCES books(id) ON DELETE CASCADE,
-    genre_id UUID NOT NULL REFERENCES genres(id) ON DELETE CASCADE,
+    book_id BIGINT NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+    genre_id BIGINT NOT NULL REFERENCES genres(id) ON DELETE CASCADE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
 
     PRIMARY KEY (book_id, genre_id)
@@ -183,143 +180,5 @@ INSERT INTO genres (name, description) VALUES
 ON CONFLICT (name) DO NOTHING;
 
 -- =====================================================
--- SAMPLE DATA: Books from mocked data
--- =====================================================
-
--- Insert authors
-INSERT INTO authors (id, name) VALUES
-    ('a1111111-1111-1111-1111-111111111111', 'F. Scott Fitzgerald'),
-    ('a2222222-2222-2222-2222-222222222222', 'George Orwell'),
-    ('a3333333-3333-3333-3333-333333333333', 'Harper Lee'),
-    ('a4444444-4444-4444-4444-444444444444', 'Andy Weir'),
-    ('a5555555-5555-5555-5555-555555555555', 'Matt Haig'),
-    ('a6666666-6666-6666-6666-666666666666', 'James Clear'),
-    ('a7777777-7777-7777-7777-777777777777', 'Alex Michaelides'),
-    ('a8888888-8888-8888-8888-888888888888', 'Tara Westover')
-ON CONFLICT (id) DO NOTHING;
-
--- Insert books
-INSERT INTO books (id, title, isbn_10, isbn_13, publisher, published_date, page_count, description) VALUES
-    (
-        'b1111111-1111-1111-1111-111111111111',
-        'The Great Gatsby',
-        '0743273565',
-        '9780743273565',
-        'Scribner',
-        '1925-04-10',
-        180,
-        'The Great Gatsby is a 1925 novel by American writer F. Scott Fitzgerald. Set in the Jazz Age on Long Island, near New York City, the novel depicts first-person narrator Nick Carraway''s interactions with mysterious millionaire Jay Gatsby and Gatsby''s obsession to reunite with his former lover, Daisy Buchanan.'
-    ),
-    (
-        'b2222222-2222-2222-2222-222222222222',
-        '1984',
-        '0451524935',
-        '9780451524935',
-        'Signet Classic',
-        '1949-06-08',
-        328,
-        'A dystopian social science fiction novel and cautionary tale by English writer George Orwell. It was published on 8 June 1949 by Secker & Warburg as Orwell''s ninth and final book completed in his lifetime. Thematically, it centres on the consequences of totalitarianism, mass surveillance, and repressive regimentation of people and behaviours within society.'
-    ),
-    (
-        'b3333333-3333-3333-3333-333333333333',
-        'To Kill a Mockingbird',
-        '0061120084',
-        '9780061120084',
-        'Harper Perennial Modern Classics',
-        '1960-07-11',
-        336,
-        'To Kill a Mockingbird is a novel by the American author Harper Lee. It was published in 1960 and was instantly successful. The plot and characters are loosely based on Lee''s observations of her family, her neighbors and an event that occurred near her hometown of Monroeville, Alabama, in 1936, when she was ten.'
-    ),
-    (
-        'b4444444-4444-4444-4444-444444444444',
-        'Project Hail Mary',
-        '0593135202',
-        '9780593135204',
-        'Ballantine Books',
-        '2021-05-04',
-        496,
-        'A 2021 science fiction novel by American author Andy Weir. Set in the near future, it centers on middle school teacher Ryland Grace, who wakes up from a coma afflicted with amnesia, aboard a small spacecraft. He gradually remembers that he was sent to the Tau Ceti solar system, 12 light-years from Earth, to find a means of reversing a solar dimming event that could cause the extinction of humanity.'
-    ),
-    (
-        'b5555555-5555-5555-5555-555555555555',
-        'The Midnight Library',
-        '0525559477',
-        '9780525559474',
-        'Viking',
-        '2020-08-13',
-        304,
-        'The Midnight Library is a 2020 novel by Matt Haig. It tells the story of Nora Seed, a woman who lives a monotonous, ordinary life and feels estranged from herself. After facing a series of rejections, she becomes suicidal and ends up in the Midnight Library, where she gets the chance to undo her regrets through exploring infinite parallel lives.'
-    ),
-    (
-        'b6666666-6666-6666-6666-666666666666',
-        'Atomic Habits',
-        '0735211299',
-        '9780735211292',
-        'Avery',
-        '2018-10-16',
-        320,
-        'An Easy & Proven Way to Build Good Habits & Break Bad Ones. No matter your goals, Atomic Habits offers a proven framework for improving--every day. James Clear, one of the world''s leading experts on habit formation, reveals practical strategies that will teach you exactly how to form good habits, break bad ones, and master the tiny behaviors that lead to remarkable results.'
-    ),
-    (
-        'b7777777-7777-7777-7777-777777777777',
-        'The Silent Patient',
-        '1250301696',
-        '9781250301697',
-        'Celadon Books',
-        '2019-02-05',
-        336,
-        'The Silent Patient is a 2019 psychological thriller novel written by British–Cypriot author Alex Michaelides. The successful debut novel was published by Celadon Books, a division of Macmillan Publishers, on 5 February 2019. The story is about a woman named Alicia who shoots her husband and then stops speaking.'
-    ),
-    (
-        'b8888888-8888-8888-8888-888888888888',
-        'Educated',
-        '0399590501',
-        '9780399590504',
-        'Random House',
-        '2018-02-20',
-        334,
-        'Educated is a memoir by the American author Tara Westover. Westover recounts her childhood in rural Idaho, where her family lived in isolation from mainstream society. Her father was distrustful of the government and modern medicine, and her mother was a midwife and herbalist. Westover did not attend school but taught herself enough to gain admission to Brigham Young University.'
-    )
-ON CONFLICT (id) DO NOTHING;
-
--- Link books to authors
-INSERT INTO book_authors (book_id, author_id, author_order) VALUES
-    ('b1111111-1111-1111-1111-111111111111', 'a1111111-1111-1111-1111-111111111111', 1),
-    ('b2222222-2222-2222-2222-222222222222', 'a2222222-2222-2222-2222-222222222222', 1),
-    ('b3333333-3333-3333-3333-333333333333', 'a3333333-3333-3333-3333-333333333333', 1),
-    ('b4444444-4444-4444-4444-444444444444', 'a4444444-4444-4444-4444-444444444444', 1),
-    ('b5555555-5555-5555-5555-555555555555', 'a5555555-5555-5555-5555-555555555555', 1),
-    ('b6666666-6666-6666-6666-666666666666', 'a6666666-6666-6666-6666-666666666666', 1),
-    ('b7777777-7777-7777-7777-777777777777', 'a7777777-7777-7777-7777-777777777777', 1),
-    ('b8888888-8888-8888-8888-888888888888', 'a8888888-8888-8888-8888-888888888888', 1)
-ON CONFLICT (book_id, author_id) DO NOTHING;
-
--- Link books to genres
-INSERT INTO book_genres (book_id, genre_id)
-SELECT 'b1111111-1111-1111-1111-111111111111', id FROM genres WHERE name IN ('Classic', 'Fiction', 'Romance')
-UNION ALL
-SELECT 'b2222222-2222-2222-2222-222222222222', id FROM genres WHERE name IN ('Dystopian', 'Science Fiction', 'Political Fiction')
-UNION ALL
-SELECT 'b3333333-3333-3333-3333-333333333333', id FROM genres WHERE name IN ('Classic', 'Fiction', 'Coming-of-Age')
-UNION ALL
-SELECT 'b4444444-4444-4444-4444-444444444444', id FROM genres WHERE name IN ('Science Fiction', 'Adventure', 'Fiction')
-UNION ALL
-SELECT 'b5555555-5555-5555-5555-555555555555', id FROM genres WHERE name IN ('Fiction', 'Fantasy', 'Contemporary')
-UNION ALL
-SELECT 'b6666666-6666-6666-6666-666666666666', id FROM genres WHERE name IN ('Self-Help', 'Non-Fiction', 'Psychology')
-UNION ALL
-SELECT 'b7777777-7777-7777-7777-777777777777', id FROM genres WHERE name IN ('Mystery', 'Thriller', 'Fiction')
-UNION ALL
-SELECT 'b8888888-8888-8888-8888-888888888888', id FROM genres WHERE name IN ('Memoir', 'Non-Fiction', 'Biography')
-ON CONFLICT (book_id, genre_id) DO NOTHING;
-
--- =====================================================
 -- Initialization Complete
 -- =====================================================
-
--- Display table counts
-SELECT 'Authors: ' || COUNT(*) FROM authors;
-SELECT 'Genres: ' || COUNT(*) FROM genres;
-SELECT 'Books: ' || COUNT(*) FROM books;
-SELECT 'Book-Author relationships: ' || COUNT(*) FROM book_authors;
-SELECT 'Book-Genre relationships: ' || COUNT(*) FROM book_genres;

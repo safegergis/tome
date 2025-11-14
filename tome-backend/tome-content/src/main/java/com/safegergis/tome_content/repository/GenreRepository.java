@@ -2,7 +2,6 @@ package com.safegergis.tome_content.repository;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -12,7 +11,7 @@ import org.springframework.stereotype.Repository;
 import com.safegergis.tome_content.modal.Genre;
 
 @Repository
-public interface GenreRepository extends JpaRepository<Genre, UUID> {
+public interface GenreRepository extends JpaRepository<Genre, Long> {
 
     /**
      * Find a genre by exact name match
@@ -38,7 +37,7 @@ public interface GenreRepository extends JpaRepository<Genre, UUID> {
      * Find all genres for a specific book
      */
     @Query("SELECT g FROM Genre g JOIN g.books b WHERE b.id = :bookId")
-    List<Genre> findByBookId(@Param("bookId") UUID bookId);
+    List<Genre> findByBookId(@Param("bookId") Long bookId);
 
     /**
      * Search for genres by name pattern (case-insensitive partial match)

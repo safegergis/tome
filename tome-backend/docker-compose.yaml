@@ -13,11 +13,20 @@ services:
       - pgdata:/var/lib/postgresql/data
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
 
-  users:
-    image: "safegergis/tome-users" 
+  # users:
+  #   image: "safegergis/tome-users" 
+  #   build:
+  #     context:
+  #       ./tome-users/.
+  #   depends_on:
+  #     - db
+  #   ports:
+  #     - "8080:8080"
+  content:
+    image: "safegergis/tome-content"
     build:
       context:
-        ./tome-users/.
+        ./tome-content/.
     depends_on:
       - db
     ports:

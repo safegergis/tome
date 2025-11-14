@@ -2,7 +2,6 @@ package com.safegergis.tome_content.repository;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -12,7 +11,7 @@ import org.springframework.stereotype.Repository;
 import com.safegergis.tome_content.modal.Author;
 
 @Repository
-public interface AuthorRepository extends JpaRepository<Author, UUID> {
+public interface AuthorRepository extends JpaRepository<Author, Long> {
 
     /**
      * Find an author by exact name match
@@ -38,7 +37,7 @@ public interface AuthorRepository extends JpaRepository<Author, UUID> {
      * Find all authors for a specific book
      */
     @Query("SELECT a FROM Author a JOIN a.books b WHERE b.id = :bookId")
-    List<Author> findByBookId(@Param("bookId") UUID bookId);
+    List<Author> findByBookId(@Param("bookId") Long bookId);
 
     /**
      * Find authors by external source (e.g., 'google_books', 'open_library')

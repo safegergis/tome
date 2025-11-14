@@ -2,7 +2,6 @@ package com.safegergis.tome_content.repository;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -12,7 +11,7 @@ import org.springframework.stereotype.Repository;
 import com.safegergis.tome_content.modal.Book;
 
 @Repository
-public interface BookRepository extends JpaRepository<Book, UUID> {
+public interface BookRepository extends JpaRepository<Book, Long> {
 
     /**
      * Find a book by ISBN-10
@@ -43,13 +42,13 @@ public interface BookRepository extends JpaRepository<Book, UUID> {
      * Find all books by a specific author
      */
     @Query("SELECT b FROM Book b JOIN b.authors a WHERE a.id = :authorId")
-    List<Book> findByAuthorId(@Param("authorId") UUID authorId);
+    List<Book> findByAuthorId(@Param("authorId") Long authorId);
 
     /**
      * Find all books in a specific genre
      */
     @Query("SELECT b FROM Book b JOIN b.genres g WHERE g.id = :genreId")
-    List<Book> findByGenreId(@Param("genreId") UUID genreId);
+    List<Book> findByGenreId(@Param("genreId") Long genreId);
 
     /**
      * Search books by title using LIKE operator

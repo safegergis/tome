@@ -4,7 +4,6 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.UUID;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -15,6 +14,8 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 
 import lombok.AllArgsConstructor;
@@ -30,8 +31,8 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class Book {
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
     @Column(nullable = false, length = 500)
     private String title;
@@ -84,4 +85,27 @@ public class Book {
     @JoinTable(name = "book_genres", joinColumns = @JoinColumn(name = "book_id"), inverseJoinColumns = @JoinColumn(name = "genre_id"))
     @Builder.Default
     private Set<Genre> genres = new HashSet<>();
+
+    /**
+     * Lifecycle callback: Called before entity is persisted to database
+     * Sets createdAt and updatedAt timestamps if not already set
+     */
+    @PrePersist
+    protected void onCreate() {
+        if (createdAt == null) {
+            createdAt = OffsetDateTime.now();
+        }
+        if (updatedAt == null) {
+            updatedAt = OffsetDateTime.now();
+        }
+    }
+
+    /**
+     * Lifecycle callback: Called before entity is updated in database
+     * Updates the updatedAt timestamp
+     */
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = OffsetDateTime.now();
+    }
 }
