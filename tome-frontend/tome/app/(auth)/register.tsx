@@ -7,6 +7,7 @@ import {
   Platform,
   ScrollView,
   TouchableOpacity,
+  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -14,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Colors, Typography, Spacing, Fonts } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { authService } from '@/services/auth.service';
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -40,24 +42,40 @@ export default function RegisterScreen() {
       confirmPassword?: string;
     } = {};
 
+    // Username validation
     if (!username) {
       newErrors.username = 'Username is required';
     } else if (username.length < 3) {
       newErrors.username = 'Username must be at least 3 characters';
+    } else if (username.length > 50) {
+      newErrors.username = 'Username must not exceed 50 characters';
+    } else if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+      newErrors.username = 'Username can only contain letters, numbers, and underscores';
     }
 
+    // Email validation
     if (!email) {
       newErrors.email = 'Email is required';
-    } else if (!/\S+@\S+\.\S+/.test(email)) {
-      newErrors.email = 'Please enter a valid email';
+    } else if (!/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(email)) {
+      newErrors.email = 'Please enter a valid email address';
     }
 
+    // Password validation with security requirements
     if (!password) {
       newErrors.password = 'Password is required';
-    } else if (password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters';
+    } else if (password.length < 8) {
+      newErrors.password = 'Password must be at least 8 characters';
+    } else if (password.length > 100) {
+      newErrors.password = 'Password must not exceed 100 characters';
+    } else if (!/[A-Z]/.test(password)) {
+      newErrors.password = 'Password must contain at least one uppercase letter';
+    } else if (!/[a-z]/.test(password)) {
+      newErrors.password = 'Password must contain at least one lowercase letter';
+    } else if (!/[0-9]/.test(password)) {
+      newErrors.password = 'Password must contain at least one number';
     }
 
+    // Confirm password validation
     if (!confirmPassword) {
       newErrors.confirmPassword = 'Please confirm your password';
     } else if (password !== confirmPassword) {
@@ -72,13 +90,50 @@ export default function RegisterScreen() {
     if (!validateForm()) return;
 
     setIsLoading(true);
-    // TODO: Implement actual registration logic here
-    // For now, simulate API call
-    setTimeout(() => {
+    try {
+      const response = await authService.register({
+        username,
+        email,
+        password,
+      });
+
+      // Registration successful - navigate to verification screen
+      router.push({
+        pathname: '/(auth)/verify-email',
+        params: {
+          userId: response.userId.toString(),
+          email: email,
+          username: username,
+        },
+      });
+    } catch (error: any) {
+      console.error('Registration error:', error);
+
+      const errorMessage = error.message || '';
+
+      // Handle specific error cases
+      if (errorMessage.toLowerCase().includes('username already exists') ||
+          errorMessage.toLowerCase().includes('username') && errorMessage.toLowerCase().includes('exists')) {
+        setErrors({
+          ...errors,
+          username: 'This username is already taken. Please choose another one.',
+        });
+      } else if (errorMessage.toLowerCase().includes('email already exists') ||
+                 errorMessage.toLowerCase().includes('email') && errorMessage.toLowerCase().includes('exists')) {
+        setErrors({
+          ...errors,
+          email: 'This email is already registered. Please use a different email or try logging in.',
+        });
+      } else {
+        // Generic error
+        Alert.alert(
+          'Registration Failed',
+          error.message || 'An error occurred during registration. Please try again.'
+        );
+      }
+    } finally {
       setIsLoading(false);
-      // Navigate to main app after successful registration
-      //router.replace('/(tabs)');
-    }, 1500);
+    }
   };
 
   return (
@@ -145,17 +200,29 @@ export default function RegisterScreen() {
             error={errors.email}
           />
 
-          <Input
-            label="Password"
-            placeholder="Create a password"
-            value={password}
-            onChangeText={(text) => {
-              setPassword(text);
-              if (errors.password) setErrors({ ...errors, password: undefined });
-            }}
-            secureTextEntry
-            error={errors.password}
-          />
+          <View>
+            <Input
+              label="Password"
+              placeholder="Create a password"
+              value={password}
+              onChangeText={(text) => {
+                setPassword(text);
+                if (errors.password) setErrors({ ...errors, password: undefined });
+              }}
+              secureTextEntry
+              error={errors.password}
+            />
+            {password.length > 0 && !errors.password && (
+              <Text
+                style={[
+                  styles.passwordHint,
+                  { color: colors.textSecondary, fontFamily: Fonts.sans },
+                ]}
+              >
+                Password must have: 8+ characters, uppercase, lowercase, and a number
+              </Text>
+            )}
+          </View>
 
           <Input
             label="Confirm Password"
@@ -235,6 +302,12 @@ const styles = StyleSheet.create({
   },
   form: {
     flex: 1,
+  },
+  passwordHint: {
+    ...Typography.caption,
+    marginTop: Spacing.xs,
+    marginBottom: Spacing.sm,
+    fontStyle: 'italic',
   },
   footer: {
     flexDirection: 'row',

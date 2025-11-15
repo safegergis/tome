@@ -20,6 +20,7 @@ interface InputProps {
     error?: string;
     autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
     keyboardType?: 'default' | 'email-address' | 'numeric' | 'phone-pad';
+    maxLength?: number;
     style?: ViewStyle;
     inputStyle?: TextStyle;
     editable?: boolean;
@@ -34,6 +35,7 @@ export function Input({
     error,
     autoCapitalize = 'none',
     keyboardType = 'default',
+    maxLength,
     style,
     inputStyle,
     editable = true,
@@ -78,6 +80,7 @@ export function Input({
                     secureTextEntry={secureTextEntry && !isPasswordVisible}
                     autoCapitalize={autoCapitalize}
                     keyboardType={keyboardType}
+                    maxLength={maxLength}
                     onFocus={() => setIsFocused(true)}
                     onBlur={() => setIsFocused(false)}
                     editable={editable}

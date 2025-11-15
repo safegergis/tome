@@ -53,7 +53,7 @@ export default function LoginScreen() {
         setTimeout(() => {
             setIsLoading(false);
             // Navigate to main app after successful login
-            router.replace('/(tabs)');
+            router.replace('/home');
         }, 1500);
     };
 

@@ -1,4 +1,13 @@
 services:
+  auth:
+    image: "safegergis/tome-auth"
+    env_file:
+      - ./.env
+    build:
+      context:
+        ./tome-auth/.
+    ports:
+        - "8082:8082"
   content:
     image: "safegergis/tome-content"
     env_file:

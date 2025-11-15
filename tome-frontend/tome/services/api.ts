@@ -248,3 +248,4 @@ export const genreApi = {
     return apiRequest<GenreDTO[]>(`/genres/by-book/${bookId}`);
   },
 };
+
