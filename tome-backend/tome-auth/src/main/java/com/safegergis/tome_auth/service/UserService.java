@@ -1,7 +1,10 @@
 package com.safegergis.tome_auth.service;
 
+import com.safegergis.tome_auth.dto.LoginRequest;
+import com.safegergis.tome_auth.dto.LoginResponse;
 import com.safegergis.tome_auth.dto.RegisterRequest;
 import com.safegergis.tome_auth.dto.RegisterResponse;
+import com.safegergis.tome_auth.exception.AuthenticationFailedException;
 import com.safegergis.tome_auth.exception.UserAlreadyExistsException;
 import com.safegergis.tome_auth.exception.VerificationException;
 import com.safegergis.tome_auth.models.User;
@@ -26,6 +29,7 @@ public class UserService {
     private final VerificationTokenRepository verificationTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
+    private final JwtService jwtService;
 
     private static final int VERIFICATION_TOKEN_EXPIRY_HOURS = 24;
     private static final String CODE_CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -145,5 +149,43 @@ public class UserService {
 
         log.info("Generated verification code for user ID: {}", user.getId());
         return codeString;
+    }
+
+    @Transactional
+    public LoginResponse loginUser(LoginRequest request) {
+        log.info("Attempting to login user with email: {}", request.getEmail());
+
+        // Find user by email
+        User user = userRepository.findByEmailAndDeletedAtIsNull(request.getEmail())
+                .orElseThrow(() -> {
+                    log.warn("Login failed: User not found with email: {}", request.getEmail());
+                    return new AuthenticationFailedException("Invalid email or password");
+                });
+
+        // Verify password
+        if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
+            log.warn("Login failed: Invalid password for email: {}", request.getEmail());
+            throw new AuthenticationFailedException("Invalid email or password");
+        }
+
+        // Check if email is verified (optional - you may want to allow login without verification)
+        // For now, we'll allow login but you can uncomment this to require verification
+        /*
+        VerificationToken verificationToken = verificationTokenRepository
+                .findFirstByUserIdAndTokenTypeAndVerifiedAtIsNullOrderByCreatedAtDesc(
+                        user.getId(), VerificationToken.TokenType.EMAIL_VERIFICATION)
+                .orElse(null);
+
+        if (verificationToken != null && !verificationToken.isVerified()) {
+            throw new AuthenticationFailedException("Email not verified. Please verify your email before logging in.");
+        }
+        */
+
+        // Generate JWT token
+        String token = jwtService.generateToken(user.getId(), user.getUsername(), user.getEmail());
+
+        log.info("Login successful for user ID: {}", user.getId());
+
+        return new LoginResponse(token, user.getId(), user.getUsername(), user.getEmail());
     }
 }

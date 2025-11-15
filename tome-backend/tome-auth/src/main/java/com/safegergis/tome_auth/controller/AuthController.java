@@ -1,5 +1,7 @@
 package com.safegergis.tome_auth.controller;
 
+import com.safegergis.tome_auth.dto.LoginRequest;
+import com.safegergis.tome_auth.dto.LoginResponse;
 import com.safegergis.tome_auth.dto.RegisterRequest;
 import com.safegergis.tome_auth.dto.RegisterResponse;
 import com.safegergis.tome_auth.dto.VerifyEmailRequest;
@@ -45,5 +47,12 @@ public class AuthController {
         return ResponseEntity.ok(Map.of(
                 "message", "Verification email sent successfully"
         ));
+    }
+
+    @PostMapping("/login")
+    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
+        log.info("Login request received for email: {}", request.getEmail());
+        LoginResponse response = userService.loginUser(request);
+        return ResponseEntity.ok(response);
     }
 }

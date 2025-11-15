@@ -7,6 +7,7 @@ import {
     Platform,
     ScrollView,
     TouchableOpacity,
+    Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -14,11 +15,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Colors, Typography, Spacing, Fonts } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useAuth } from '@/context/AuthContext';
 
 export default function LoginScreen() {
     const router = useRouter();
     const colorScheme = useColorScheme();
     const colors = Colors[colorScheme ?? 'light'];
+    const { login } = useAuth();
 
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -48,13 +51,37 @@ export default function LoginScreen() {
         if (!validateForm()) return;
 
         setIsLoading(true);
-        // TODO: Implement actual login logic here
-        // For now, simulate API call
-        setTimeout(() => {
-            setIsLoading(false);
-            // Navigate to main app after successful login
+        try {
+            // Call the login function from AuthContext
+            await login(email, password);
+
+            // Navigate to home on successful login
             router.replace('/home');
-        }, 1500);
+        } catch (error: any) {
+            const errorMessage = error.message || '';
+
+            // Handle 401 Unauthorized - invalid credentials
+            if (errorMessage.toLowerCase().includes('invalid email or password') ||
+                errorMessage.toLowerCase().includes('unauthorized')) {
+                setErrors({
+                    email: 'Invalid email or password',
+                    password: 'Invalid email or password',
+                });
+            }
+            // Handle validation errors
+            else if (errorMessage.toLowerCase().includes('validation')) {
+                Alert.alert('Validation Error', errorMessage);
+            }
+            // Handle network or other errors
+            else {
+                Alert.alert(
+                    'Login Failed',
+                    errorMessage || 'An error occurred during login. Please try again.'
+                );
+            }
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (

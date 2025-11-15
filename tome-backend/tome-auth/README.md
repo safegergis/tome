@@ -5,13 +5,16 @@ Authentication and authorization microservice for the Tome application.
 ## Features
 
 - ✅ User registration with email verification
+- ✅ User login with JWT authentication
 - ✅ 6-character verification codes (24-hour expiry)
+- ✅ JWT tokens with user ID (24-hour expiry)
 - ✅ Password reset codes (future feature)
 - ✅ BCrypt password hashing
+- ✅ Password security requirements (uppercase, lowercase, numbers)
 - ✅ Beautiful Thymeleaf email templates
 - ✅ Async email sending
 - ✅ Soft deletes for users
-- ✅ Input validation
+- ✅ Comprehensive input validation
 
 ## Tech Stack
 
@@ -21,6 +24,7 @@ Authentication and authorization microservice for the Tome application.
 - Spring Security
 - Spring Mail
 - PostgreSQL
+- JWT (JJWT 0.12.3)
 - Thymeleaf
 - Lombok
 
@@ -144,6 +148,38 @@ Response (200 OK):
 }
 ```
 
+### Login
+
+**POST** `/api/auth/login`
+
+Request:
+```json
+{
+  "email": "john@example.com",
+  "password": "SecurePass123"
+}
+```
+
+Response (200 OK):
+```json
+{
+  "userId": 1,
+  "username": "johndoe",
+  "email": "john@example.com",
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "message": "Login successful"
+}
+```
+
+Error Response (401 Unauthorized):
+```json
+{
+  "status": 401,
+  "message": "Invalid email or password",
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+```
+
 ## Database Schema
 
 ### Users Table
@@ -235,6 +271,60 @@ The service provides detailed error responses:
   "message": "Verification token has expired",
   "timestamp": "2024-01-15T10:30:00Z"
 }
+```
+
+### Authentication Errors (401)
+```json
+{
+  "status": 401,
+  "message": "Invalid email or password",
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+```
+
+## JWT Authentication
+
+### JWT Token Structure
+
+The login endpoint returns a JWT token that contains:
+
+**Claims:**
+- `userId` - User's unique ID
+- `username` - User's username
+- `email` - User's email
+- `sub` - Subject (userId as string)
+- `iat` - Issued at timestamp
+- `exp` - Expiration timestamp (24 hours from issue)
+
+**Example decoded JWT:**
+```json
+{
+  "userId": 1,
+  "username": "johndoe",
+  "email": "john@example.com",
+  "sub": "1",
+  "iat": 1705320000,
+  "exp": 1705406400
+}
+```
+
+### Using JWT Tokens
+
+Include the JWT token in the `Authorization` header for authenticated requests:
+
+```
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+### JWT Configuration
+
+- **Secret Key**: Configured via `JWT_SECRET` environment variable (must be base64 encoded, min 256 bits)
+- **Expiration**: 24 hours (86400000 milliseconds) - configurable via `jwt.expiration` property
+- **Algorithm**: HS256 (HMAC with SHA-256)
+
+**Generate a secure key:**
+```bash
+openssl rand -base64 32
 ```
 
 ## Development

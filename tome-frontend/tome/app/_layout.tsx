@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { AuthProvider } from '@/context/AuthContext';
 
 export const unstable_settings = {
     initialRouteName: 'welcome',
@@ -13,18 +14,20 @@ export default function RootLayout() {
     const colorScheme = useColorScheme();
 
     return (
-        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-            <Stack
-                screenOptions={{
-                    headerShown: false,
-                }}
-            >
-                <Stack.Screen name="welcome" />
-                <Stack.Screen name="home" />
-                <Stack.Screen name="books/[id]" />
-                <Stack.Screen name="(auth)" />
-            </Stack>
-            <StatusBar style="auto" />
-        </ThemeProvider>
+        <AuthProvider>
+            <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+                <Stack
+                    screenOptions={{
+                        headerShown: false,
+                    }}
+                >
+                    <Stack.Screen name="welcome" />
+                    <Stack.Screen name="home" />
+                    <Stack.Screen name="books/[id]" />
+                    <Stack.Screen name="(auth)" />
+                </Stack>
+                <StatusBar style="auto" />
+            </ThemeProvider>
+        </AuthProvider>
     );
 }
