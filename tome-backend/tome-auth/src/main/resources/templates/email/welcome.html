@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to Tome</title>
+    <style>
+        body {
+            font-family: Georgia, 'Times New Roman', serif;
+            background-color: #F5F5DC;
+            margin: 0;
+            padding: 0;
+        }
+        .email-container {
+            max-width: 600px;
+            margin: 40px auto;
+            background-color: #FFFFFF;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(107, 70, 193, 0.1);
+        }
+        .header {
+            background-color: #6B46C1;
+            color: #F5F5DC;
+            padding: 40px 30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 32px;
+            font-weight: 400;
+            letter-spacing: 2px;
+        }
+        .content {
+            padding: 40px 30px;
+            color: #2C1810;
+        }
+        .content h2 {
+            color: #6B46C1;
+            font-size: 24px;
+            margin-top: 0;
+            font-weight: 400;
+        }
+        .content p {
+            font-size: 16px;
+            line-height: 1.6;
+            margin: 15px 0;
+        }
+        .features {
+            background-color: #F5F5DC;
+            padding: 25px;
+            margin: 25px 0;
+            border-radius: 4px;
+        }
+        .features h3 {
+            color: #6B46C1;
+            font-size: 18px;
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+        .features ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+        .features li {
+            margin: 10px 0;
+            color: #2C1810;
+        }
+        .footer {
+            background-color: #F5F5DC;
+            padding: 25px 30px;
+            text-align: center;
+            font-size: 14px;
+            color: #6B6B6B;
+        }
+        .footer p {
+            margin: 5px 0;
+        }
+        .highlight {
+            color: #6B46C1;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="header">
+            <h1>TOME</h1>
+        </div>
+        <div class="content">
+            <h2>Welcome to Your Reading Journey!</h2>
+            <p>Hello <span th:text="${username}" class="highlight">User</span>,</p>
+            <p>Your email has been verified successfully! You're now ready to start tracking your reading journey with Tome.</p>
+
+            <div class="features">
+                <h3>What You Can Do with Tome:</h3>
+                <ul>
+                    <li>📚 Track books you're reading, want to read, and have completed</li>
+                    <li>⭐ Rate and review your favorite (and not-so-favorite) books</li>
+                    <li>📊 Monitor your reading progress and statistics</li>
+                    <li>📝 Create custom reading lists for any occasion</li>
+                    <li>🔍 Discover your next great read</li>
+                </ul>
+            </div>
+
+            <p>We're thrilled to have you as part of the Tome community. Happy reading!</p>
+
+            <p style="margin-top: 30px; font-style: italic; color: #6B6B6B;">
+                "A reader lives a thousand lives before he dies... The man who never reads lives only one."
+                <br>— George R.R. Martin
+            </p>
+        </div>
+        <div class="footer">
+            <p>© 2024 Tome. Track your reading journey.</p>
+            <p>This is an automated message, please do not reply.</p>
+        </div>
+    </div>
+</body>
+</html>

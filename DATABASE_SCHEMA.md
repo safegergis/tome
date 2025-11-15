@@ -25,6 +25,7 @@ CREATE TABLE users (
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     avatar_url VARCHAR(500),
+    bio TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP WITH TIME ZONE,
@@ -41,8 +42,9 @@ CREATE INDEX idx_users_email ON users(email) WHERE deleted_at IS NULL;
 - `id`: Unique user identifier (auto-incrementing BIGINT)
 - `username`: Unique username (min 3 characters)
 - `email`: Unique email address
-- `password_hash`: Hashed password (use bcrypt/argon2)
+- `password_hash`: Hashed password (bcrypt/argon2 recommended, required)
 - `avatar_url`: Optional profile picture URL
+- `bio`: User biography/description (optional)
 - `created_at`: Account creation timestamp
 - `updated_at`: Last profile update timestamp
 - `deleted_at`: Soft delete timestamp (NULL if active)
