@@ -1,9 +1,10 @@
 package com.safegergis.tome_content.modal;
 
-import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.HashSet;
 import java.util.Set;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -19,7 +20,9 @@ import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 
 @Entity
 @Table(name = "authors")
@@ -27,6 +30,8 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@ToString(exclude = "books")
+@EqualsAndHashCode(exclude = "books")
 public class Author {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -38,11 +43,11 @@ public class Author {
     @Column(columnDefinition = "TEXT")
     private String bio;
 
-    @Column(name = "birth_date")
-    private LocalDate birthDate;
+    @Column(name = "birth_year")
+    private Integer birthYear;
 
-    @Column(name = "death_date")
-    private LocalDate deathDate;
+    @Column(name = "death_year")
+    private Integer deathYear;
 
     @Column(name = "photo_url", length = 500)
     private String photoUrl;
@@ -60,6 +65,7 @@ public class Author {
     private OffsetDateTime updatedAt;
 
     @ManyToMany(fetch = FetchType.LAZY, mappedBy = "authors")
+    @JsonIgnore
     @Builder.Default
     private Set<Book> books = new HashSet<>();
 

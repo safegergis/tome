@@ -13,8 +13,17 @@ async function apiRequest<T>(
   options?: RequestInit
 ): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
+  const method = options?.method || 'GET';
+
+  console.log('[API] Request:', {
+    method,
+    url,
+    headers: options?.headers,
+    body: options?.body,
+  });
 
   try {
+    const startTime = Date.now();
     const response = await fetch(url, {
       headers: {
         'Content-Type': 'application/json',
@@ -23,16 +32,49 @@ async function apiRequest<T>(
       ...options,
     });
 
+    const duration = Date.now() - startTime;
+
+    console.log(`[API] Response (${duration}ms):`, {
+      method,
+      url,
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok,
+    });
+
     if (!response.ok) {
       const error = await response.json().catch(() => ({
         message: `HTTP error ${response.status}`,
       }));
+      console.error('[API] Error Response:', {
+        method,
+        url,
+        status: response.status,
+        error,
+      });
       throw new Error(error.message || `Request failed: ${response.statusText}`);
     }
 
-    return await response.json();
+    const data = await response.json();
+    console.log('[API] Success:', {
+      method,
+      url,
+      dataType: Array.isArray(data) ? `Array(${data.length})` : typeof data,
+      preview: Array.isArray(data)
+        ? `${data.length} items`
+        : data.id
+          ? `ID: ${data.id}`
+          : 'Object',
+    });
+
+    return data;
   } catch (error) {
-    console.error('API request error:', error);
+    console.error('[API] Request Failed:', {
+      method,
+      url,
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     throw error;
   }
 }
@@ -88,6 +130,7 @@ export const bookApi = {
    * Get all books
    */
   getAllBooks: async (): Promise<BookDTO[]> => {
+    console.log('[bookApi] Calling getAllBooks()');
     return apiRequest<BookDTO[]>('/books');
   },
 
@@ -95,6 +138,7 @@ export const bookApi = {
    * Get a book by ID
    */
   getBookById: async (id: number): Promise<BookDTO> => {
+    console.log(`[bookApi] Calling getBookById(${id})`);
     return apiRequest<BookDTO>(`/books/${id}`);
   },
 
@@ -102,6 +146,7 @@ export const bookApi = {
    * Search books by title
    */
   searchBooks: async (title: string): Promise<BookDTO[]> => {
+    console.log(`[bookApi] Calling searchBooks("${title}")`);
     return apiRequest<BookDTO[]>(`/books/search?title=${encodeURIComponent(title)}`);
   },
 
@@ -109,6 +154,7 @@ export const bookApi = {
    * Get books by author ID
    */
   getBooksByAuthor: async (authorId: number): Promise<BookDTO[]> => {
+    console.log(`[bookApi] Calling getBooksByAuthor(${authorId})`);
     return apiRequest<BookDTO[]>(`/books/by-author/${authorId}`);
   },
 
@@ -116,6 +162,7 @@ export const bookApi = {
    * Get books by genre ID
    */
   getBooksByGenre: async (genreId: number): Promise<BookDTO[]> => {
+    console.log(`[bookApi] Calling getBooksByGenre(${genreId})`);
     return apiRequest<BookDTO[]>(`/books/by-genre/${genreId}`);
   },
 
@@ -123,6 +170,7 @@ export const bookApi = {
    * Get book by ISBN-10
    */
   getBookByIsbn10: async (isbn10: string): Promise<BookDTO> => {
+    console.log(`[bookApi] Calling getBookByIsbn10("${isbn10}")`);
     return apiRequest<BookDTO>(`/books/isbn10/${isbn10}`);
   },
 
@@ -130,6 +178,7 @@ export const bookApi = {
    * Get book by ISBN-13
    */
   getBookByIsbn13: async (isbn13: string): Promise<BookDTO> => {
+    console.log(`[bookApi] Calling getBookByIsbn13("${isbn13}")`);
     return apiRequest<BookDTO>(`/books/isbn13/${isbn13}`);
   },
 };

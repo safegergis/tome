@@ -17,18 +17,25 @@ import jakarta.persistence.ManyToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 
 @Entity
-@Table(name = "books")
+@Table(name = "books", uniqueConstraints = {
+        @UniqueConstraint(columnNames = { "external_source", "external_id" })
+})
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@ToString(exclude = {"authors", "genres"})
+@EqualsAndHashCode(exclude = {"authors", "genres"})
 public class Book {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -64,7 +71,7 @@ public class Book {
     @Column(name = "cover_url", length = 500)
     private String coverUrl;
 
-    @Column(name = "external_id", length = 255)
+    @Column(name = "external_id", length = 100)
     private String externalId;
 
     @Column(name = "external_source", length = 50)
