@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   SafeAreaView,
   Image,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -15,39 +16,9 @@ import { Colors, Typography, Spacing, Fonts, BorderRadius, Shadows } from '@/con
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Button } from '@/components/ui/button';
 import { ReviewCard, ReviewData } from '@/components/ui/review-card';
+import { bookApi, BookDTO } from '@/services/api';
 
-// Mock book data - replace with API call
-const MOCK_BOOKS: Record<string, any> = {
-  '1': {
-    id: '1',
-    title: 'The Great Gatsby',
-    author: 'F. Scott Fitzgerald',
-    coverUrl: '',
-    isbn: '978-0743273565',
-    publishedDate: 'April 10, 1925',
-    pageCount: 180,
-    genre: ['Classic', 'Fiction', 'Romance'],
-    description:
-      'The Great Gatsby is a 1925 novel by American writer F. Scott Fitzgerald. Set in the Jazz Age on Long Island, near New York City, the novel depicts first-person narrator Nick Carraway\'s interactions with mysterious millionaire Jay Gatsby and Gatsby\'s obsession to reunite with his former lover, Daisy Buchanan. The story is a withering critique of the American Dream and a portrait of an era that Fitzgerald himself dubbed the "Jazz Age."',
-    averageRating: 4.5,
-    totalRatings: 1234,
-  },
-  '2': {
-    id: '2',
-    title: '1984',
-    author: 'George Orwell',
-    coverUrl: '',
-    isbn: '978-0451524935',
-    publishedDate: 'June 8, 1949',
-    pageCount: 328,
-    genre: ['Dystopian', 'Science Fiction', 'Political Fiction'],
-    description:
-      'Among the seminal texts of the 20th century, Nineteen Eighty-Four is a rare work that grows more haunting as its futuristic purgatory becomes more real. Published in 1949, the book offers political satirist George Orwell\'s nightmarish vision of a totalitarian, bureaucratic world and one poor stiff\'s attempt to find individuality.',
-    averageRating: 4.7,
-    totalRatings: 2341,
-  },
-};
-
+// Mock reviews - these would come from a reviews API endpoint
 const MOCK_REVIEWS: ReviewData[] = [
   {
     id: '1',
@@ -83,12 +54,33 @@ export default function BookDetailsScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
 
+  const [book, setBook] = useState<BookDTO | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [readingStatus, setReadingStatus] = useState<ReadingStatus>('none');
   const [userRating, setUserRating] = useState(0);
   const [notes, setNotes] = useState('');
 
-  // Get book data (in real app, fetch from API)
-  const book = MOCK_BOOKS[id as string] || MOCK_BOOKS['1'];
+  // Fetch book data on component mount
+  useEffect(() => {
+    async function fetchBook() {
+      try {
+        setLoading(true);
+        setError(null);
+        const bookData = await bookApi.getBookById(Number(id));
+        setBook(bookData);
+      } catch (err) {
+        console.error('Error fetching book:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load book');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    if (id) {
+      fetchBook();
+    }
+  }, [id]);
 
   const handleBack = () => {
     router.back();
@@ -139,6 +131,63 @@ export default function BookDetailsScreen() {
     return readingStatus === status ? 'primary' : 'outlined';
   };
 
+  // Show loading spinner
+  if (loading) {
+    return (
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+        <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+        <View style={[styles.header, { backgroundColor: colors.background }]}>
+          <TouchableOpacity onPress={handleBack} style={styles.backButton}>
+            <Ionicons name="chevron-back" size={28} color={colors.text} />
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, { color: colors.text, fontFamily: Fonts.serif }]}>
+            Book Details
+          </Text>
+          <View style={styles.placeholder} />
+        </View>
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
+            Loading book details...
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Show error message
+  if (error || !book) {
+    return (
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+        <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+        <View style={[styles.header, { backgroundColor: colors.background }]}>
+          <TouchableOpacity onPress={handleBack} style={styles.backButton}>
+            <Ionicons name="chevron-back" size={28} color={colors.text} />
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, { color: colors.text, fontFamily: Fonts.serif }]}>
+            Book Details
+          </Text>
+          <View style={styles.placeholder} />
+        </View>
+        <View style={styles.centerContainer}>
+          <Text style={[styles.errorText, { color: colors.error }]}>
+            {error || 'Book not found'}
+          </Text>
+          <Text style={[styles.errorHint, { color: colors.textSecondary }]}>
+            Make sure the backend server is running
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Prepare display data
+  const authorNames = book.authors && book.authors.length > 0
+    ? book.authors.map(a => a.name).join(', ')
+    : 'Unknown Author';
+  const genreNames = book.genres?.map(g => g.name) || [];
+  const isbn = book.isbn13 || book.isbn10 || 'N/A';
+
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
       <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
@@ -186,18 +235,12 @@ export default function BookDetailsScreen() {
             <Text
               style={[styles.author, { color: colors.textSecondary, fontFamily: Fonts.serif }]}
             >
-              by {book.author}
+              by {authorNames}
             </Text>
 
-            <View style={styles.ratingContainer}>
-              {renderStars(Math.round(book.averageRating))}
-              <Text style={[styles.ratingText, { color: colors.textSecondary }]}>
-                {book.averageRating} ({book.totalRatings} ratings)
-              </Text>
-            </View>
-
-            <View style={styles.genres}>
-              {book.genre.map((genre: string, index: number) => (
+            {genreNames.length > 0 && (
+              <View style={styles.genres}>
+                {genreNames.map((genre: string, index: number) => (
                 <View
                   key={index}
                   style={[
@@ -218,7 +261,8 @@ export default function BookDetailsScreen() {
                   </Text>
                 </View>
               ))}
-            </View>
+              </View>
+            )}
           </View>
         </View>
 
@@ -227,31 +271,43 @@ export default function BookDetailsScreen() {
           <Text style={[styles.sectionTitle, { color: colors.text, fontFamily: Fonts.serif }]}>
             Details
           </Text>
-          <View style={styles.detailRow}>
-            <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Published:</Text>
-            <Text style={[styles.detailValue, { color: colors.text }]}>{book.publishedDate}</Text>
-          </View>
-          <View style={styles.detailRow}>
-            <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Pages:</Text>
-            <Text style={[styles.detailValue, { color: colors.text }]}>{book.pageCount}</Text>
-          </View>
+          {book.publishedDate && (
+            <View style={styles.detailRow}>
+              <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Published:</Text>
+              <Text style={[styles.detailValue, { color: colors.text }]}>{book.publishedDate}</Text>
+            </View>
+          )}
+          {book.pageCount && (
+            <View style={styles.detailRow}>
+              <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Pages:</Text>
+              <Text style={[styles.detailValue, { color: colors.text }]}>{book.pageCount}</Text>
+            </View>
+          )}
           <View style={styles.detailRow}>
             <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>ISBN:</Text>
-            <Text style={[styles.detailValue, { color: colors.text }]}>{book.isbn}</Text>
+            <Text style={[styles.detailValue, { color: colors.text }]}>{isbn}</Text>
           </View>
+          {book.publisher && (
+            <View style={styles.detailRow}>
+              <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Publisher:</Text>
+              <Text style={[styles.detailValue, { color: colors.text }]}>{book.publisher}</Text>
+            </View>
+          )}
         </View>
 
         {/* Description */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.text, fontFamily: Fonts.serif }]}>
-            Synopsis
-          </Text>
-          <Text
-            style={[styles.description, { color: colors.text, fontFamily: Fonts.serif }]}
-          >
-            {book.description}
-          </Text>
-        </View>
+        {book.description && (
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: colors.text, fontFamily: Fonts.serif }]}>
+              Synopsis
+            </Text>
+            <Text
+              style={[styles.description, { color: colors.text, fontFamily: Fonts.serif }]}
+            >
+              {book.description}
+            </Text>
+          </View>
+        )}
 
         {/* Reading Status */}
         <View style={styles.section}>
@@ -470,5 +526,24 @@ const styles = StyleSheet.create({
   seeAllText: {
     ...Typography.bodySmall,
     fontWeight: '600',
+  },
+  centerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.lg,
+  },
+  loadingText: {
+    ...Typography.body,
+    marginTop: Spacing.base,
+  },
+  errorText: {
+    ...Typography.h3,
+    textAlign: 'center',
+    marginBottom: Spacing.sm,
+  },
+  errorHint: {
+    ...Typography.bodySmall,
+    textAlign: 'center',
   },
 });

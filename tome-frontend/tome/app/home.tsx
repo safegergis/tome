@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   ScrollView,
   StyleSheet,
   SafeAreaView,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -13,61 +14,69 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { SearchBar } from '@/components/ui/search-bar';
 import { BookSection } from '@/components/ui/book-section';
 import { BookData } from '@/components/ui/book-card';
+import { bookApi, BookDTO } from '@/services/api';
 
-// Mock data - replace with real data from your backend/state management
-const MOCK_CURRENT_BOOKS: BookData[] = [
-  {
-    id: '1',
-    title: 'The Great Gatsby',
-    author: 'F. Scott Fitzgerald',
-    progress: 45,
-  },
-  {
-    id: '2',
-    title: '1984',
-    author: 'George Orwell',
-    progress: 78,
-  },
-  {
-    id: '3',
-    title: 'To Kill a Mockingbird',
-    author: 'Harper Lee',
-    progress: 23,
-  },
-];
+/**
+ * Convert backend BookDTO to frontend BookData format
+ */
+function mapBookDTOToBookData(book: BookDTO, progress?: number): BookData {
+  // Join author names, or use first author, or default to 'Unknown Author'
+  const authorName = book.authors && book.authors.length > 0
+    ? book.authors.map(a => a.name).join(', ')
+    : 'Unknown Author';
 
-const MOCK_TRENDING_BOOKS: BookData[] = [
-  {
-    id: '4',
-    title: 'Project Hail Mary',
-    author: 'Andy Weir',
-  },
-  {
-    id: '5',
-    title: 'The Midnight Library',
-    author: 'Matt Haig',
-  },
-  {
-    id: '6',
-    title: 'Atomic Habits',
-    author: 'James Clear',
-  },
-  {
-    id: '7',
-    title: 'The Silent Patient',
-    author: 'Alex Michaelides',
-  },
-  {
-    id: '8',
-    title: 'Educated',
-    author: 'Tara Westover',
-  },
-];
+  return {
+    id: book.id.toString(),
+    title: book.title,
+    author: authorName,
+    coverUrl: book.coverUrl,
+    progress,
+  };
+}
 
 export default function HomeScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
+
+  const [currentBooks, setCurrentBooks] = useState<BookData[]>([]);
+  const [trendingBooks, setTrendingBooks] = useState<BookData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch books on component mount
+  useEffect(() => {
+    async function fetchBooks() {
+      try {
+        setLoading(true);
+        setError(null);
+
+        // Fetch all books from the backend
+        const books = await bookApi.getAllBooks();
+
+        // For now, treat the first 3 books as "currently reading" with mock progress
+        // In a real app, this would come from user's reading status API
+        const currentBooksData = books.slice(0, 3).map((book, index) =>
+          mapBookDTOToBookData(book, [45, 78, 23][index])
+        );
+
+        // Treat remaining books as "trending"
+        const trendingBooksData = books.slice(3, 8).map(book =>
+          mapBookDTOToBookData(book)
+        );
+
+        setCurrentBooks(currentBooksData);
+        setTrendingBooks(trendingBooksData);
+      } catch (err) {
+        console.error('Error fetching books:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load books');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchBooks();
+  }, []);
 
   const handleSearchPress = () => {
     // Navigate to search screen when implemented
@@ -88,6 +97,38 @@ export default function HomeScreen() {
     // Navigate to trending books
     console.log('See all trending books');
   };
+
+  // Show loading spinner while fetching data
+  if (loading) {
+    return (
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+        <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
+            Loading books...
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Show error message if fetch failed
+  if (error) {
+    return (
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+        <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+        <View style={styles.centerContainer}>
+          <Text style={[styles.errorText, { color: colors.error }]}>
+            {error}
+          </Text>
+          <Text style={[styles.errorHint, { color: colors.textSecondary }]}>
+            Make sure the backend server is running
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
@@ -130,7 +171,7 @@ export default function HomeScreen() {
         {/* Currently Reading Section */}
         <BookSection
           title="Currently Reading"
-          books={MOCK_CURRENT_BOOKS}
+          books={currentBooks}
           onBookPress={handleBookPress}
           onSeeAll={handleSeeAllCurrent}
           showProgress
@@ -141,7 +182,7 @@ export default function HomeScreen() {
         {/* Trending Books Section */}
         <BookSection
           title="Trending This Week"
-          books={MOCK_TRENDING_BOOKS}
+          books={trendingBooks}
           onBookPress={handleBookPress}
           onSeeAll={handleSeeAllTrending}
           emptyMessage="No trending books available"
@@ -181,5 +222,24 @@ const styles = StyleSheet.create({
   },
   section: {
     marginTop: Spacing.base,
+  },
+  centerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.lg,
+  },
+  loadingText: {
+    ...Typography.body,
+    marginTop: Spacing.base,
+  },
+  errorText: {
+    ...Typography.h3,
+    textAlign: 'center',
+    marginBottom: Spacing.sm,
+  },
+  errorHint: {
+    ...Typography.bodySmall,
+    textAlign: 'center',
   },
 });
