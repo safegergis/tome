@@ -31,15 +31,6 @@ public class AuthorController {
     private final AuthorService authorService;
 
     /**
-     * GET /api/authors - Get all authors
-     */
-    @GetMapping
-    public ResponseEntity<List<AuthorDTO>> getAllAuthors() {
-        List<AuthorDTO> authors = authorService.getAllAuthors();
-        return ResponseEntity.ok(authors);
-    }
-
-    /**
      * GET /api/authors/{id} - Get author by ID
      */
     @GetMapping("/{id}")

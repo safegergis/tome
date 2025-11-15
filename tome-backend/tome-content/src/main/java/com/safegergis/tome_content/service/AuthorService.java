@@ -26,16 +26,6 @@ public class AuthorService {
     private final AuthorRepository authorRepository;
 
     /**
-     * Get all authors
-     */
-    @Transactional(readOnly = true)
-    public List<AuthorDTO> getAllAuthors() {
-        return authorRepository.findAll().stream()
-                .map(AuthorMapper::toDTO)
-                .collect(Collectors.toList());
-    }
-
-    /**
      * Get an author by ID
      */
     @Transactional(readOnly = true)

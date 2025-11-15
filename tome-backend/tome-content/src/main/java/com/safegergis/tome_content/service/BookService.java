@@ -34,16 +34,6 @@ public class BookService {
     private final GenreRepository genreRepository;
 
     /**
-     * Get all books
-     */
-    @Transactional(readOnly = true)
-    public List<BookDTO> getAllBooks() {
-        return bookRepository.findAll().stream()
-                .map(BookMapper::toDTO)
-                .collect(Collectors.toList());
-    }
-
-    /**
      * Get a book by ID
      */
     @Transactional(readOnly = true)
@@ -132,7 +122,7 @@ public class BookService {
         if (request.getIsbn10() != null || request.getIsbn13() != null) {
             if (bookRepository.existsByIsbn10OrIsbn13(request.getIsbn10(), request.getIsbn13())) {
                 throw new DuplicateResourceException("Book",
-                    "ISBN-10: " + request.getIsbn10() + " or ISBN-13: " + request.getIsbn13());
+                        "ISBN-10: " + request.getIsbn10() + " or ISBN-13: " + request.getIsbn13());
             }
         }
 

@@ -31,15 +31,6 @@ public class BookController {
     private final BookService bookService;
 
     /**
-     * GET /api/books - Get all books
-     */
-    @GetMapping
-    public ResponseEntity<List<BookDTO>> getAllBooks() {
-        List<BookDTO> books = bookService.getAllBooks();
-        return ResponseEntity.ok(books);
-    }
-
-    /**
      * GET /api/books/{id} - Get book by ID
      */
     @GetMapping("/{id}")
