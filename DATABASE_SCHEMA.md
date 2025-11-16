@@ -65,9 +65,11 @@ CREATE TABLE books (
     publisher VARCHAR(255),
     published_date DATE,
     page_count INTEGER,
+    ebook_page_count INTEGER,
     language VARCHAR(10) DEFAULT 'en',
     description TEXT,
     cover_url VARCHAR(500),
+    audio_length_seconds INTEGER,
     external_source VARCHAR(50),
     external_id VARCHAR(100),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -76,7 +78,9 @@ CREATE TABLE books (
     CONSTRAINT isbn_10_format CHECK (isbn_10 ~* '^[0-9]{10}$' OR isbn_10 IS NULL),
     CONSTRAINT isbn_13_format CHECK (isbn_13 ~* '^[0-9]{13}$' OR isbn_13 IS NULL),
     CONSTRAINT at_least_one_isbn CHECK (isbn_10 IS NOT NULL OR isbn_13 IS NOT NULL),
-    CONSTRAINT page_count_positive CHECK (page_count > 0),
+    CONSTRAINT page_count_positive CHECK (page_count > 0 OR page_count IS NULL),
+    CONSTRAINT ebook_page_count_positive CHECK (ebook_page_count > 0 OR ebook_page_count IS NULL),
+    CONSTRAINT audio_length_positive CHECK (audio_length_seconds > 0 OR audio_length_seconds IS NULL),
     UNIQUE(external_source, external_id)
 );
 
@@ -84,6 +88,7 @@ CREATE INDEX idx_books_isbn_10 ON books(isbn_10) WHERE isbn_10 IS NOT NULL;
 CREATE INDEX idx_books_isbn_13 ON books(isbn_13) WHERE isbn_13 IS NOT NULL;
 CREATE INDEX idx_books_title ON books USING gin(to_tsvector('english', title));
 CREATE INDEX idx_books_published_date ON books(published_date);
+CREATE INDEX idx_books_audio_length ON books(audio_length_seconds) WHERE audio_length_seconds IS NOT NULL;
 CREATE INDEX idx_books_external ON books(external_source, external_id) WHERE external_source IS NOT NULL;
 ```
 
@@ -95,10 +100,12 @@ CREATE INDEX idx_books_external ON books(external_source, external_id) WHERE ext
 - `isbn_13`: ISBN-13 identifier (unique, 13 digits)
 - `publisher`: Publishing company name
 - `published_date`: Publication date
-- `page_count`: Number of pages
+- `page_count`: Number of pages (physical edition)
+- `ebook_page_count`: Number of pages (ebook edition, may differ from physical)
 - `language`: ISO 639-1 language code (default: 'en')
 - `description`: Book synopsis/description
 - `cover_url`: Book cover image URL
+- `audio_length_seconds`: Audiobook duration in seconds (optional)
 - `external_source`: Source of the book data (e.g., 'hardcover', 'google_books', 'openlibrary')
 - `external_id`: ID from the external source (e.g., Hardcover edition ID)
 - `created_at`: Record creation timestamp
@@ -227,23 +234,31 @@ CREATE INDEX idx_book_genres_genre_id ON book_genres(genre_id);
 Tracks user's reading status and progress for each book.
 
 ```sql
-CREATE TYPE reading_status AS ENUM ('want-to-read', 'currently-reading', 'read');
+CREATE TYPE reading_status AS ENUM ('want-to-read', 'currently-reading', 'read', 'did-not-finish');
 
 CREATE TABLE user_books (
     id BIGSERIAL PRIMARY KEY,
     user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     book_id BIGINT NOT NULL REFERENCES books(id) ON DELETE CASCADE,
     status reading_status NOT NULL,
-    progress INTEGER DEFAULT 0,
+    current_page INTEGER DEFAULT 0,
+    current_seconds INTEGER DEFAULT 0,
+    user_page_count INTEGER,
+    user_audio_length_seconds INTEGER,
     personal_rating INTEGER,
     notes TEXT,
     started_at TIMESTAMP WITH TIME ZONE,
     finished_at TIMESTAMP WITH TIME ZONE,
+    dnf_date TIMESTAMP WITH TIME ZONE,
+    dnf_reason TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
 
     UNIQUE(user_id, book_id),
-    CONSTRAINT progress_range CHECK (progress >= 0 AND progress <= 100),
+    CONSTRAINT current_page_positive CHECK (current_page >= 0),
+    CONSTRAINT current_seconds_positive CHECK (current_seconds >= 0),
+    CONSTRAINT user_page_count_positive CHECK (user_page_count > 0 OR user_page_count IS NULL),
+    CONSTRAINT user_audio_length_positive CHECK (user_audio_length_seconds > 0 OR user_audio_length_seconds IS NULL),
     CONSTRAINT rating_range CHECK (personal_rating >= 1 AND personal_rating <= 5),
     CONSTRAINT finished_after_started CHECK (finished_at IS NULL OR started_at IS NULL OR finished_at >= started_at)
 );
@@ -257,23 +272,95 @@ CREATE INDEX idx_user_books_book_id ON user_books(book_id);
 - `id`: Unique record identifier (auto-incrementing BIGINT)
 - `user_id`: Reference to users table (BIGINT)
 - `book_id`: Reference to books table (BIGINT)
-- `status`: Reading status (want-to-read, currently-reading, read)
-- `progress`: Reading progress percentage (0-100)
+- `status`: Reading status (want-to-read, currently-reading, read, did-not-finish)
+- `current_page`: Current page number for physical/ebook reading (default: 0)
+- `current_seconds`: Current listening position in seconds for audiobooks (default: 0)
+- `user_page_count`: User's edition page count (optional, overrides books.page_count for progress calculation)
+- `user_audio_length_seconds`: User's audiobook length in seconds (optional, overrides books.audio_length_seconds)
 - `personal_rating`: User's rating (1-5 stars, optional)
 - `notes`: Personal notes about the book
 - `started_at`: When user started reading
 - `finished_at`: When user finished reading
+- `dnf_date`: When user marked as did-not-finish (optional)
+- `dnf_reason`: Why user did not finish the book (optional)
 - `created_at`: Record creation timestamp
 - `updated_at`: Last update timestamp
 
 **Notes:**
 - Each user can only have one reading status per book (enforced by unique constraint)
-- Progress is 0-100 percentage
+- Progress is calculated from current_page/user_page_count or current_seconds/user_audio_length_seconds
+- User-specific page/audio counts allow tracking different editions than the database default
 - Personal rating is separate from public reviews
+- DNF (did-not-finish) status preserves progress when stopped
 
 ---
 
-### 8. reviews
+### 8. reading_sessions
+
+Tracks individual reading activities and sessions.
+
+```sql
+CREATE TYPE reading_method AS ENUM ('physical', 'ebook', 'audiobook');
+
+CREATE TABLE reading_sessions (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    book_id BIGINT NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+
+    pages_read INTEGER,
+    minutes_read INTEGER,
+
+    reading_method reading_method NOT NULL,
+    session_date DATE NOT NULL DEFAULT CURRENT_DATE,
+
+    start_page INTEGER,
+    end_page INTEGER,
+    notes TEXT,
+
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT pages_read_positive CHECK (pages_read > 0 OR pages_read IS NULL),
+    CONSTRAINT minutes_read_positive CHECK (minutes_read > 0 OR minutes_read IS NULL),
+    CONSTRAINT audiobook_requires_time CHECK (
+        reading_method != 'audiobook' OR minutes_read IS NOT NULL
+    ),
+    CONSTRAINT non_audiobook_requires_pages CHECK (
+        reading_method = 'audiobook' OR pages_read IS NOT NULL
+    ),
+    CONSTRAINT start_before_end CHECK (end_page IS NULL OR start_page IS NULL OR end_page > start_page)
+);
+
+CREATE INDEX idx_reading_sessions_user_id ON reading_sessions(user_id);
+CREATE INDEX idx_reading_sessions_book_id ON reading_sessions(book_id);
+CREATE INDEX idx_reading_sessions_date ON reading_sessions(session_date DESC);
+CREATE INDEX idx_reading_sessions_user_book ON reading_sessions(user_id, book_id);
+CREATE INDEX idx_reading_sessions_method ON reading_sessions(reading_method);
+```
+
+**Columns:**
+- `id`: Unique session identifier (auto-incrementing BIGINT)
+- `user_id`: Reference to users table (BIGINT)
+- `book_id`: Reference to books table (BIGINT)
+- `pages_read`: Number of pages read in this session (required for physical/ebook, optional for audiobook)
+- `minutes_read`: Time spent reading in minutes (required for audiobook, optional for physical/ebook)
+- `reading_method`: Method used (physical, ebook, audiobook)
+- `session_date`: Date of reading session (defaults to today)
+- `start_page`: Starting page number (optional)
+- `end_page`: Ending page number (optional)
+- `notes`: Session notes or reflections (optional)
+- `created_at`: Record creation timestamp
+- `updated_at`: Last update timestamp
+
+**Notes:**
+- Physical/ebook sessions require `pages_read`, audiobook sessions require `minutes_read`
+- Users can optionally track both pages and time for any session
+- Multiple sessions per day are allowed
+- Reading method can vary per session (e.g., switching between physical and audiobook)
+
+---
+
+### 9. reviews
 
 Stores public user reviews of books.
 
@@ -316,27 +403,36 @@ CREATE INDEX idx_reviews_created_at ON reviews(created_at DESC) WHERE deleted_at
 
 ---
 
-### 9. lists
+### 10. lists
 
-Stores user-created book lists.
+Stores user-created book lists and system-generated default lists.
 
 ```sql
+CREATE TYPE list_type AS ENUM ('custom', 'currently-reading', 'to-be-read');
+
 CREATE TABLE lists (
     id BIGSERIAL PRIMARY KEY,
     user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
     description TEXT,
     is_public BOOLEAN DEFAULT false,
+    is_default BOOLEAN DEFAULT false,
+    list_type list_type DEFAULT 'custom',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP WITH TIME ZONE,
 
-    CONSTRAINT name_length CHECK (length(name) >= 1)
+    CONSTRAINT name_length CHECK (length(name) >= 1),
+    CONSTRAINT system_list_check CHECK (
+        (is_default = false) OR
+        (is_default = true AND list_type IN ('currently-reading', 'to-be-read'))
+    )
 );
 
 CREATE INDEX idx_lists_user_id ON lists(user_id) WHERE deleted_at IS NULL;
 CREATE INDEX idx_lists_is_public ON lists(is_public) WHERE deleted_at IS NULL AND is_public = true;
 CREATE INDEX idx_lists_created_at ON lists(created_at DESC) WHERE deleted_at IS NULL;
+CREATE UNIQUE INDEX idx_lists_default_per_user ON lists(user_id, list_type) WHERE is_default = true;
 ```
 
 **Columns:**
@@ -345,13 +441,21 @@ CREATE INDEX idx_lists_created_at ON lists(created_at DESC) WHERE deleted_at IS 
 - `name`: List name (required)
 - `description`: List description (optional)
 - `is_public`: Whether list is publicly visible
+- `is_default`: Whether this is a system-generated default list (cannot be deleted)
+- `list_type`: Type of list (custom, currently-reading, to-be-read)
 - `created_at`: List creation timestamp
 - `updated_at`: Last update timestamp
 - `deleted_at`: Soft delete timestamp
 
+**Notes:**
+- System-generated default lists (Currently Reading, To Be Read) are created automatically for new users
+- Each user can have only one default list per list_type
+- Default lists cannot be deleted but can be modified
+- Custom lists can be created, edited, and deleted by users
+
 ---
 
-### 10. list_books
+### 11. list_books
 
 Junction table for lists and books (many-to-many).
 
@@ -426,6 +530,102 @@ WHERE u.deleted_at IS NULL
 GROUP BY u.id, u.username;
 ```
 
+### user_book_progress
+
+Provides easy access to reading progress with calculated percentages and session aggregations.
+
+```sql
+CREATE VIEW user_book_progress AS
+SELECT
+    ub.id,
+    ub.user_id,
+    ub.book_id,
+    ub.status,
+    ub.current_page,
+    ub.current_seconds,
+
+    -- Page-based tracking
+    COALESCE(ub.user_page_count, b.page_count, b.ebook_page_count) AS effective_page_count,
+    b.page_count AS book_page_count,
+    b.ebook_page_count,
+    ub.user_page_count,
+
+    -- Time-based tracking (audiobooks)
+    COALESCE(ub.user_audio_length_seconds, b.audio_length_seconds) AS effective_audio_length,
+    b.audio_length_seconds AS book_audio_length,
+    ub.user_audio_length_seconds,
+
+    -- Progress percentage (uses whichever is applicable)
+    CASE
+        WHEN COALESCE(ub.user_page_count, b.page_count, b.ebook_page_count) > 0
+        THEN LEAST(ROUND((ub.current_page::NUMERIC / COALESCE(ub.user_page_count, b.page_count, b.ebook_page_count)) * 100, 2), 100)
+        WHEN COALESCE(ub.user_audio_length_seconds, b.audio_length_seconds) > 0
+        THEN LEAST(ROUND((ub.current_seconds::NUMERIC / COALESCE(ub.user_audio_length_seconds, b.audio_length_seconds)) * 100, 2), 100)
+        ELSE 0
+    END AS progress_percentage,
+
+    -- Session aggregations
+    COUNT(rs.id) AS total_sessions,
+    SUM(rs.pages_read) AS total_pages_logged,
+    SUM(rs.minutes_read) AS total_minutes_logged,
+    MAX(rs.session_date) AS last_session_date,
+
+    -- Primary reading method (most used)
+    MODE() WITHIN GROUP (ORDER BY rs.reading_method) AS primary_method
+
+FROM user_books ub
+JOIN books b ON ub.book_id = b.id
+LEFT JOIN reading_sessions rs ON ub.user_id = rs.user_id AND ub.book_id = rs.book_id
+GROUP BY ub.id, ub.user_id, ub.book_id, ub.status, ub.current_page, ub.current_seconds,
+         ub.user_page_count, b.page_count, b.ebook_page_count,
+         ub.user_audio_length_seconds, b.audio_length_seconds;
+```
+
+### user_reading_activity
+
+Aggregated reading activity and statistics per user, including weekly metrics.
+
+```sql
+CREATE VIEW user_reading_activity AS
+SELECT
+    u.id AS user_id,
+    u.username,
+    COUNT(DISTINCT CASE WHEN rs.session_date >= CURRENT_DATE - INTERVAL '7 days' THEN rs.id END) AS sessions_this_week,
+    SUM(CASE WHEN rs.session_date >= CURRENT_DATE - INTERVAL '7 days' THEN COALESCE(rs.pages_read, 0) ELSE 0 END) AS pages_this_week,
+    SUM(CASE WHEN rs.session_date >= CURRENT_DATE - INTERVAL '7 days' THEN COALESCE(rs.minutes_read, 0) ELSE 0 END) AS minutes_this_week,
+    COUNT(DISTINCT CASE WHEN rs.session_date >= CURRENT_DATE - INTERVAL '30 days' THEN rs.id END) AS sessions_this_month,
+    SUM(CASE WHEN rs.session_date >= CURRENT_DATE - INTERVAL '30 days' THEN COALESCE(rs.pages_read, 0) ELSE 0 END) AS pages_this_month,
+    SUM(CASE WHEN rs.session_date >= CURRENT_DATE - INTERVAL '30 days' THEN COALESCE(rs.minutes_read, 0) ELSE 0 END) AS minutes_this_month,
+    COUNT(DISTINCT rs.book_id) AS books_with_sessions,
+    MODE() WITHIN GROUP (ORDER BY rs.reading_method) AS preferred_reading_method
+FROM users u
+LEFT JOIN reading_sessions rs ON u.id = rs.user_id
+WHERE u.deleted_at IS NULL
+GROUP BY u.id, u.username;
+```
+
+### audiobook_statistics
+
+Statistics and metrics specifically for audiobooks.
+
+```sql
+CREATE VIEW audiobook_statistics AS
+SELECT
+    b.id AS book_id,
+    b.title,
+    b.audio_length_seconds,
+    ROUND(b.audio_length_seconds / 3600.0, 2) AS audio_length_hours,
+    COUNT(DISTINCT ub.user_id) FILTER (WHERE rs.reading_method = 'audiobook') AS audiobook_listeners,
+    COUNT(DISTINCT ub.user_id) FILTER (WHERE ub.status = 'read' AND rs.reading_method = 'audiobook') AS completed_listeners,
+    AVG(rs.minutes_read) FILTER (WHERE rs.reading_method = 'audiobook') AS avg_session_minutes,
+    SUM(rs.minutes_read) FILTER (WHERE rs.reading_method = 'audiobook') AS total_listening_minutes
+FROM books b
+LEFT JOIN user_books ub ON b.id = ub.book_id
+LEFT JOIN reading_sessions rs ON b.id = rs.book_id AND ub.user_id = rs.user_id
+WHERE b.audio_length_seconds IS NOT NULL
+GROUP BY b.id, b.title, b.audio_length_seconds;
+```
+
 ---
 
 ## Entity Relationship Diagram
@@ -439,6 +639,9 @@ users (1) ----< (N) user_books (N) >---- (1) books
   |                                           |
   v                                           v
 reviews (N) >-------------------------- (1) books
+
+
+users (1) ----< (N) reading_sessions (N) >---- (1) books
 
 
 users (1) ----< (N) lists (1) ----< (N) list_books (N) >---- (1) books
@@ -481,14 +684,19 @@ SELECT
     b.title,
     b.cover_url,
     ARRAY_AGG(a.name ORDER BY ba.author_order) AS authors,
-    ub.progress,
+    ubp.progress_percentage,
+    ubp.current_page,
+    ubp.effective_page_count,
+    ubp.last_session_date,
     ub.started_at
 FROM user_books ub
 JOIN books b ON ub.book_id = b.id
+JOIN user_book_progress ubp ON ub.id = ubp.id
 LEFT JOIN book_authors ba ON b.id = ba.book_id
 LEFT JOIN authors a ON ba.author_id = a.id
 WHERE ub.user_id = $1 AND ub.status = 'currently-reading'
-GROUP BY b.id, b.title, b.cover_url, ub.progress, ub.started_at
+GROUP BY b.id, b.title, b.cover_url, ubp.progress_percentage, ubp.current_page,
+         ubp.effective_page_count, ubp.last_session_date, ub.started_at
 ORDER BY ub.started_at DESC;
 ```
 
@@ -543,6 +751,101 @@ ORDER BY r.created_at DESC
 LIMIT 20;
 ```
 
+### Get user's progress on a specific book
+
+```sql
+SELECT * FROM user_book_progress
+WHERE user_id = $1 AND book_id = $2;
+```
+
+### Get reading sessions for a book
+
+```sql
+SELECT
+    rs.*,
+    b.title,
+    b.cover_url
+FROM reading_sessions rs
+JOIN books b ON rs.book_id = b.id
+WHERE rs.user_id = $1 AND rs.book_id = $2
+ORDER BY rs.session_date DESC, rs.created_at DESC
+LIMIT 50;
+```
+
+### Get user's reading activity stats
+
+```sql
+SELECT * FROM user_reading_activity
+WHERE user_id = $1;
+```
+
+### Get recent reading sessions (activity feed)
+
+```sql
+SELECT
+    rs.id,
+    rs.session_date,
+    rs.pages_read,
+    rs.minutes_read,
+    rs.reading_method,
+    b.id AS book_id,
+    b.title,
+    b.cover_url,
+    ARRAY_AGG(a.name ORDER BY ba.author_order) AS authors
+FROM reading_sessions rs
+JOIN books b ON rs.book_id = b.id
+LEFT JOIN book_authors ba ON b.id = ba.book_id
+LEFT JOIN authors a ON ba.author_id = a.id
+WHERE rs.user_id = $1
+GROUP BY rs.id, rs.session_date, rs.pages_read, rs.minutes_read, rs.reading_method,
+         b.id, b.title, b.cover_url
+ORDER BY rs.session_date DESC, rs.created_at DESC
+LIMIT 20;
+```
+
+### Get DNF (Did Not Finish) books with reasons
+
+```sql
+SELECT
+    b.id,
+    b.title,
+    b.cover_url,
+    ARRAY_AGG(DISTINCT a.name ORDER BY ba.author_order) AS authors,
+    ub.current_page,
+    ubp.progress_percentage,
+    ub.dnf_date,
+    ub.dnf_reason
+FROM user_books ub
+JOIN books b ON ub.book_id = b.id
+JOIN user_book_progress ubp ON ub.id = ubp.id
+LEFT JOIN book_authors ba ON b.id = ba.book_id
+LEFT JOIN authors a ON ba.author_id = a.id
+WHERE ub.user_id = $1 AND ub.status = 'did-not-finish'
+GROUP BY b.id, b.title, b.cover_url, ub.current_page, ubp.progress_percentage,
+         ub.dnf_date, ub.dnf_reason
+ORDER BY ub.dnf_date DESC;
+```
+
+### Get user's default lists (Currently Reading, TBR)
+
+```sql
+SELECT
+    l.*,
+    COUNT(DISTINCT lb.book_id) AS book_count
+FROM lists l
+LEFT JOIN list_books lb ON l.id = lb.list_id
+WHERE l.user_id = $1 AND l.is_default = true
+GROUP BY l.id
+ORDER BY l.list_type;
+```
+
+### Get audiobook listening statistics
+
+```sql
+SELECT * FROM audiobook_statistics
+WHERE book_id = $1;
+```
+
 ---
 
 ## Indexes Strategy
@@ -557,8 +860,11 @@ LIMIT 20;
 
 ## Migration Notes
 
-1. **Create ENUM type first** before creating `user_books` table
-2. **Run migrations in order**: users → books → authors → genres → junction tables → reviews/lists
+1. **Create ENUM types first** before creating tables that depend on them:
+   - `reading_status` ENUM before `user_books` table
+   - `reading_method` ENUM before `reading_sessions` table
+   - `list_type` ENUM before `lists` table
+2. **Run migrations in order**: users → books → authors → genres → user_books → reading_sessions → junction tables → reviews/lists
 3. **Seed genres table** with common book genres
 4. **Consider triggers** for auto-updating `updated_at` timestamps:
 
@@ -575,6 +881,26 @@ $$ language 'plpgsql';
 CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 -- (repeat for other tables)
+```
+
+5. **Auto-create default lists** for new users:
+
+```sql
+CREATE OR REPLACE FUNCTION create_default_lists_for_user()
+RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO lists (user_id, name, description, is_public, is_default, list_type)
+    VALUES
+        (NEW.id, 'Currently Reading', 'Books I am currently reading', true, true, 'currently-reading'),
+        (NEW.id, 'To Be Read', 'Books I want to read', true, true, 'to-be-read');
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_create_default_lists
+    AFTER INSERT ON users
+    FOR EACH ROW
+    EXECUTE FUNCTION create_default_lists_for_user();
 ```
 
 ---
