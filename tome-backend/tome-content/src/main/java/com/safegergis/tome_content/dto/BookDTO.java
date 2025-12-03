@@ -26,6 +26,8 @@ public class BookDTO {
     private String publisher;
     private LocalDate publishedDate;
     private Integer pageCount;
+    private Integer ebookPageCount;
+    private Integer audioLengthSeconds;
     private String language;
     private String description;
     private String coverUrl;

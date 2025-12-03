@@ -74,6 +74,19 @@ public class BookService {
     }
 
     /**
+     * Search books by title or author name
+     *
+     * @param query the search query to match against book title or author name
+     * @return list of book DTOs matching the search criteria
+     */
+    @Transactional(readOnly = true)
+    public List<BookDTO> searchBooks(String query) {
+        return bookRepository.searchByTitleOrAuthor(query).stream()
+                .map(BookMapper::toDTO)
+                .collect(Collectors.toList());
+    }
+
+    /**
      * Get books by author ID
      */
     @Transactional(readOnly = true)

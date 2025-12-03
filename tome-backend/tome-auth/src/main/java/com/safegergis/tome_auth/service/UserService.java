@@ -4,9 +4,11 @@ import com.safegergis.tome_auth.dto.LoginRequest;
 import com.safegergis.tome_auth.dto.LoginResponse;
 import com.safegergis.tome_auth.dto.RegisterRequest;
 import com.safegergis.tome_auth.dto.RegisterResponse;
+import com.safegergis.tome_auth.dto.UserDTO;
 import com.safegergis.tome_auth.exception.AuthenticationFailedException;
 import com.safegergis.tome_auth.exception.UserAlreadyExistsException;
 import com.safegergis.tome_auth.exception.VerificationException;
+import com.safegergis.tome_auth.mapper.UserMapper;
 import com.safegergis.tome_auth.models.User;
 import com.safegergis.tome_auth.models.VerificationToken;
 import com.safegergis.tome_auth.repositories.UserRepository;
@@ -19,6 +21,8 @@ import org.springframework.stereotype.Service;
 
 import java.security.SecureRandom;
 import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -187,5 +191,19 @@ public class UserService {
         log.info("Login successful for user ID: {}", user.getId());
 
         return new LoginResponse(token, user.getId(), user.getUsername(), user.getEmail());
+    }
+
+    /**
+     * Search users by username
+     *
+     * @param query the search query to match against username
+     * @return list of user DTOs matching the search criteria
+     */
+    @Transactional
+    public List<UserDTO> searchUsers(String query) {
+        log.info("Searching users with query: {}", query);
+        return userRepository.searchByUsername(query).stream()
+                .map(UserMapper::toDTO)
+                .collect(Collectors.toList());
     }
 }

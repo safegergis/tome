@@ -70,9 +70,7 @@ export default function HomeScreen() {
     const colors = Colors[colorScheme ?? 'light'];
 
     const handleSearchPress = () => {
-        // Navigate to search screen when implemented
-        // router.push('/search');
-        console.log('Navigate to search');
+        router.push('/search');
     };
 
     const handleBookPress = (book: BookData) => {

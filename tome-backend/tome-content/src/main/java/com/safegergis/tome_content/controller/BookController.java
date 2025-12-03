@@ -58,11 +58,11 @@ public class BookController {
     }
 
     /**
-     * GET /api/books/search?title={title} - Search books by title
+     * GET /api/books/search?q={query} - Search books by title or author name
      */
     @GetMapping("/search")
-    public ResponseEntity<List<BookDTO>> searchBooks(@RequestParam String title) {
-        List<BookDTO> books = bookService.searchBooksByTitle(title);
+    public ResponseEntity<List<BookDTO>> searchBooks(@RequestParam String q) {
+        List<BookDTO> books = bookService.searchBooks(q);
         return ResponseEntity.ok(books);
     }
 

@@ -65,4 +65,15 @@ public interface BookRepository extends JpaRepository<Book, Long> {
      * Find books by language
      */
     List<Book> findByLanguage(String language);
+
+    /**
+     * Search books by title or author name (case-insensitive partial match)
+     *
+     * @param searchTerm the search term to match against book title or author name
+     * @return list of books matching the search criteria
+     */
+    @Query("SELECT DISTINCT b FROM Book b LEFT JOIN b.authors a " +
+           "WHERE LOWER(b.title) LIKE LOWER(CONCAT('%', :searchTerm, '%')) " +
+           "OR LOWER(a.name) LIKE LOWER(CONCAT('%', :searchTerm, '%'))")
+    List<Book> searchByTitleOrAuthor(@Param("searchTerm") String searchTerm);
 }

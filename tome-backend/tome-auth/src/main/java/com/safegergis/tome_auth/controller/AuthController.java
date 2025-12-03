@@ -4,6 +4,7 @@ import com.safegergis.tome_auth.dto.LoginRequest;
 import com.safegergis.tome_auth.dto.LoginResponse;
 import com.safegergis.tome_auth.dto.RegisterRequest;
 import com.safegergis.tome_auth.dto.RegisterResponse;
+import com.safegergis.tome_auth.dto.UserDTO;
 import com.safegergis.tome_auth.dto.VerifyEmailRequest;
 import com.safegergis.tome_auth.service.UserService;
 import jakarta.validation.Valid;
@@ -13,6 +14,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -54,5 +56,15 @@ public class AuthController {
         log.info("Login request received for email: {}", request.getEmail());
         LoginResponse response = userService.loginUser(request);
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * GET /api/auth/users/search?q={query} - Search users by username
+     */
+    @GetMapping("/users/search")
+    public ResponseEntity<List<UserDTO>> searchUsers(@RequestParam String q) {
+        log.info("User search request received with query: {}", q);
+        List<UserDTO> users = userService.searchUsers(q);
+        return ResponseEntity.ok(users);
     }
 }

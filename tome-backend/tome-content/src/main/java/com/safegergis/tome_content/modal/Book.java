@@ -62,6 +62,12 @@ public class Book {
     @Column(name = "page_count")
     private Integer pageCount;
 
+    @Column(name = "ebook_page_count")
+    private Integer ebookPageCount;
+
+    @Column(name = "audio_length_seconds")
+    private Integer audioLengthSeconds;
+
     @Column(length = 10, nullable = false)
     private String language = "en";
 

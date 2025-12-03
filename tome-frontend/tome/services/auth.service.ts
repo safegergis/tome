@@ -121,6 +121,14 @@ export interface LoginResponse {
     message: string;
 }
 
+export interface UserDTO {
+    id: number;
+    username: string;
+    avatarUrl?: string;
+    bio?: string;
+    createdAt: string;
+}
+
 /**
  * Authentication Service
  */
@@ -178,5 +186,13 @@ export const authService = {
         console.log('[authService] Calling logout()');
         // Clear local storage, tokens, etc.
         // For now, just a placeholder
+    },
+
+    /**
+     * Search users by username
+     */
+    searchUsers: async (query: string): Promise<UserDTO[]> => {
+        console.log(`[authService] Calling searchUsers("${query}")`);
+        return authApiRequest<UserDTO[]>(`/users/search?q=${encodeURIComponent(query)}`);
     },
 };
