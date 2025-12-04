@@ -3,8 +3,10 @@
  * Handles all authentication-related API calls
  */
 
-// API Base URL - update this based on your environment
-const AUTH_API_BASE_URL = 'http://192.168.0.247:8082/api/auth';
+import { ENV } from '@/config/env';
+
+// API Base URL - loaded from environment configuration
+const AUTH_API_BASE_URL = ENV.AUTH_API_URL;
 
 /**
  * Generic fetch wrapper with error handling

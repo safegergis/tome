@@ -16,6 +16,8 @@ import { Colors, Typography, Spacing, Fonts, BorderRadius, Shadows } from '@/con
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Button } from '@/components/ui/button';
 import { ReviewCard, ReviewData } from '@/components/ui/review-card';
+import { FloatingActionButton } from '@/components/ui/floating-action-button';
+import { ReadingSessionModal } from '@/components/reading-session/reading-session-modal';
 import { bookApi, BookDTO } from '@/services/api';
 
 // Mock reviews - these would come from a reviews API endpoint
@@ -60,6 +62,7 @@ export default function BookDetailsScreen() {
   const [readingStatus, setReadingStatus] = useState<ReadingStatus>('none');
   const [userRating, setUserRating] = useState(0);
   const [notes, setNotes] = useState('');
+  const [sessionModalVisible, setSessionModalVisible] = useState(false);
 
   // Fetch book data on component mount
   useEffect(() => {
@@ -88,6 +91,11 @@ export default function BookDetailsScreen() {
 
   const handleAddToList = () => {
     console.log('Add to list');
+  };
+
+  const handleSessionLogged = () => {
+    console.log('Session logged for book:', id);
+    // Optionally refresh book data or show a success message
   };
 
   const renderStars = (rating: number) => {
@@ -374,6 +382,20 @@ export default function BookDetailsScreen() {
           ))}
         </View>
       </ScrollView>
+
+      {/* Floating Action Button */}
+      <FloatingActionButton
+        onPress={() => setSessionModalVisible(true)}
+        bottom={Spacing.lg}
+      />
+
+      {/* Reading Session Modal */}
+      <ReadingSessionModal
+        visible={sessionModalVisible}
+        onClose={() => setSessionModalVisible(false)}
+        onSuccess={handleSessionLogged}
+        preselectedBookId={book?.id || null}
+      />
     </SafeAreaView>
   );
 }

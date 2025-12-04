@@ -11,19 +11,10 @@ import {
 import { Colors, Typography, BorderRadius, Spacing, Fonts } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
-interface InputProps {
+interface InputProps extends React.ComponentProps<typeof TextInput> {
     label?: string;
-    placeholder?: string;
-    value: string;
-    onChangeText: (text: string) => void;
-    secureTextEntry?: boolean;
     error?: string;
-    autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
-    keyboardType?: 'default' | 'email-address' | 'numeric' | 'phone-pad';
-    maxLength?: number;
-    style?: ViewStyle;
     inputStyle?: TextStyle;
-    editable?: boolean;
 }
 
 export function Input({
@@ -39,6 +30,7 @@ export function Input({
     style,
     inputStyle,
     editable = true,
+    ...rest
 }: InputProps) {
     const colorScheme = useColorScheme();
     const colors = Colors[colorScheme ?? 'light'];
@@ -84,6 +76,7 @@ export function Input({
                     onFocus={() => setIsFocused(true)}
                     onBlur={() => setIsFocused(false)}
                     editable={editable}
+                    {...rest}
                 />
                 {secureTextEntry && (
                     <TouchableOpacity

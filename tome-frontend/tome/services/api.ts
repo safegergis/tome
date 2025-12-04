@@ -2,8 +2,10 @@
  * API client for communicating with the Tome backend
  */
 
-// API Base URL - update this based on your environment
-const API_BASE_URL = 'http://192.168.0.247:8080/api';
+import { ENV } from '@/config/env';
+
+// API Base URL - loaded from environment configuration
+const API_BASE_URL = ENV.CONTENT_API_URL;
 
 /**
  * Generic fetch wrapper with error handling

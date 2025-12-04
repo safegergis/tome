@@ -17,4 +17,16 @@ services:
         ./tome-content/.
     ports:
       - "8080:8080"
+  user-data:
+    image: "safegergis/tome-user-data"
+    env_file:
+      - ./.env
+    build:
+      context:
+        ./tome-user-data/.
+    ports:
+      - "8083:8083"
+    depends_on:
+      - auth
+      - content
 

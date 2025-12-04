@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
     View,
     Text,
     ScrollView,
     StyleSheet,
     SafeAreaView,
+    Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -13,6 +14,10 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { SearchBar } from '@/components/ui/search-bar';
 import { BookSection } from '@/components/ui/book-section';
 import { BookData } from '@/components/ui/book-card';
+import { FloatingActionButton } from '@/components/ui/floating-action-button';
+import { ReadingSessionModal } from '@/components/reading-session/reading-session-modal';
+import { readingSessionApi } from '@/services/reading-session.service';
+import { useAuth } from '@/context/AuthContext';
 
 // Mock data - replace with real data from your backend/state management
 const MOCK_CURRENT_BOOKS: BookData[] = [
@@ -68,6 +73,9 @@ export default function HomeScreen() {
     const router = useRouter();
     const colorScheme = useColorScheme();
     const colors = Colors[colorScheme ?? 'light'];
+    const { token } = useAuth();
+    const [sessionModalVisible, setSessionModalVisible] = useState(false);
+    const [currentBooks, setCurrentBooks] = useState<BookData[]>(MOCK_CURRENT_BOOKS);
 
     const handleSearchPress = () => {
         router.push('/search');
@@ -85,6 +93,35 @@ export default function HomeScreen() {
     const handleSeeAllTrending = () => {
         // Navigate to trending books
         console.log('See all trending books');
+    };
+
+    const handleSessionLogged = async () => {
+        console.log('Session logged, refreshing data...');
+
+        // Refresh currently reading books from API
+        if (token) {
+            try {
+                const updatedBooks = await readingSessionApi.getCurrentlyReadingBooks(token);
+
+                // Transform UserBookDTO to BookData format
+                const transformedBooks: BookData[] = updatedBooks.map(userBook => ({
+                    id: String(userBook.bookId),
+                    title: userBook.book.title,
+                    author: userBook.book.authorNames.join(', '),
+                    coverUrl: userBook.book.coverUrl,
+                    progress: userBook.progressPercentage || 0,
+                }));
+
+                setCurrentBooks(transformedBooks);
+                console.log('Successfully refreshed currently reading books');
+            } catch (error) {
+                console.error('Failed to refresh currently reading books:', error);
+                Alert.alert(
+                    'Refresh Failed',
+                    'Could not update your reading progress. Please refresh manually.'
+                );
+            }
+        }
     };
 
     return (
@@ -128,7 +165,7 @@ export default function HomeScreen() {
                 {/* Currently Reading Section */}
                 <BookSection
                     title="Currently Reading"
-                    books={MOCK_CURRENT_BOOKS}
+                    books={currentBooks}
                     onBookPress={handleBookPress}
                     onSeeAll={handleSeeAllCurrent}
                     showProgress
@@ -146,6 +183,20 @@ export default function HomeScreen() {
                     style={styles.section}
                 />
             </ScrollView>
+
+            {/* Floating Action Button */}
+            <FloatingActionButton
+                onPress={() => setSessionModalVisible(true)}
+                bottom={Spacing.lg}
+            />
+
+            {/* Reading Session Modal */}
+            <ReadingSessionModal
+                visible={sessionModalVisible}
+                onClose={() => setSessionModalVisible(false)}
+                onSuccess={handleSessionLogged}
+            />
+
         </SafeAreaView>
     );
 }
