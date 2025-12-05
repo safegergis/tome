@@ -14,6 +14,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 interface InputProps extends React.ComponentProps<typeof TextInput> {
     label?: string;
     error?: string;
+    helperText?: string;
     inputStyle?: TextStyle;
 }
 
@@ -24,6 +25,7 @@ export function Input({
     onChangeText,
     secureTextEntry = false,
     error,
+    helperText,
     autoCapitalize = 'none',
     keyboardType = 'default',
     maxLength,
@@ -99,6 +101,16 @@ export function Input({
                     {error}
                 </Text>
             )}
+            {helperText && !error && (
+                <Text
+                    style={[
+                        styles.helperText,
+                        { color: colors.textSecondary, fontFamily: Fonts.serif },
+                    ]}
+                >
+                    {helperText}
+                </Text>
+            )}
         </View>
     );
 }
@@ -131,6 +143,10 @@ const styles = StyleSheet.create({
     },
     error: {
         ...Typography.caption,
+        marginTop: Spacing.xs,
+    },
+    helperText: {
+        ...Typography.bodySmall,
         marginTop: Spacing.xs,
     },
 });

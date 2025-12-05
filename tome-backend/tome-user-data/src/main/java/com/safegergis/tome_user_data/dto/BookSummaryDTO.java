@@ -17,6 +17,8 @@ import lombok.NoArgsConstructor;
 public class BookSummaryDTO {
     private Long id;
     private String title;
+    private String isbn10;
+    private String isbn13;
     private String coverUrl;
     private Set<String> authorNames;
     private Integer pageCount;

@@ -74,6 +74,8 @@ public class BookServiceClient {
         return BookSummaryDTO.builder()
                 .id(book.getId())
                 .title(book.getTitle())
+                .isbn10(book.getIsbn10())
+                .isbn13(book.getIsbn13())
                 .coverUrl(book.getCoverUrl())
                 .authorNames(book.getAuthors() != null
                         ? book.getAuthors().stream()
@@ -95,6 +97,8 @@ public class BookServiceClient {
     static class BookDTO {
         private Long id;
         private String title;
+        private String isbn10;
+        private String isbn13;
         private String coverUrl;
         private Integer pageCount;
         private Integer ebookPageCount;

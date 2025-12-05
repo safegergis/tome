@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -6,6 +6,7 @@ import {
     StyleSheet,
     SafeAreaView,
     Alert,
+    ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -18,28 +19,6 @@ import { FloatingActionButton } from '@/components/ui/floating-action-button';
 import { ReadingSessionModal } from '@/components/reading-session/reading-session-modal';
 import { readingSessionApi } from '@/services/reading-session.service';
 import { useAuth } from '@/context/AuthContext';
-
-// Mock data - replace with real data from your backend/state management
-const MOCK_CURRENT_BOOKS: BookData[] = [
-    {
-        id: '61911',
-        title: 'The Great Gatsby',
-        author: 'F. Scott Fitzgerald',
-        progress: 45,
-    },
-    {
-        id: '61912',
-        title: '1984',
-        author: 'George Orwell',
-        progress: 78,
-    },
-    {
-        id: '61913',
-        title: 'To Kill a Mockingbird',
-        author: 'Harper Lee',
-        progress: 23,
-    },
-];
 
 const MOCK_TRENDING_BOOKS: BookData[] = [
     {
@@ -75,7 +54,47 @@ export default function HomeScreen() {
     const colors = Colors[colorScheme ?? 'light'];
     const { token } = useAuth();
     const [sessionModalVisible, setSessionModalVisible] = useState(false);
-    const [currentBooks, setCurrentBooks] = useState<BookData[]>(MOCK_CURRENT_BOOKS);
+    const [currentBooks, setCurrentBooks] = useState<BookData[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    // Fetch currently reading books on mount
+    useEffect(() => {
+        fetchCurrentlyReadingBooks();
+    }, [token]);
+
+    const fetchCurrentlyReadingBooks = async () => {
+        if (!token) {
+            setLoading(false);
+            return;
+        }
+
+        try {
+            setLoading(true);
+            setError(null);
+
+            console.log('[HomeScreen] Fetching currently reading books...');
+            const updatedBooks = await readingSessionApi.getCurrentlyReadingBooks(token);
+
+            // Transform UserBookDTO to BookData format
+            const transformedBooks: BookData[] = updatedBooks.map(userBook => ({
+                id: String(userBook.bookId),
+                title: userBook.book.title,
+                author: userBook.book.authorNames.join(', '),
+                isbn: userBook.book.isbn10,
+                coverUrl: userBook.book.coverUrl,
+                progress: Math.round(userBook.progressPercentage || 0),
+            }));
+
+            setCurrentBooks(transformedBooks);
+            console.log(`[HomeScreen] Loaded ${transformedBooks.length} currently reading books`);
+        } catch (error) {
+            console.error('[HomeScreen] Failed to fetch currently reading books:', error);
+            setError('Failed to load your reading progress');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const handleSearchPress = () => {
         router.push('/search');
@@ -96,32 +115,8 @@ export default function HomeScreen() {
     };
 
     const handleSessionLogged = async () => {
-        console.log('Session logged, refreshing data...');
-
-        // Refresh currently reading books from API
-        if (token) {
-            try {
-                const updatedBooks = await readingSessionApi.getCurrentlyReadingBooks(token);
-
-                // Transform UserBookDTO to BookData format
-                const transformedBooks: BookData[] = updatedBooks.map(userBook => ({
-                    id: String(userBook.bookId),
-                    title: userBook.book.title,
-                    author: userBook.book.authorNames.join(', '),
-                    coverUrl: userBook.book.coverUrl,
-                    progress: userBook.progressPercentage || 0,
-                }));
-
-                setCurrentBooks(transformedBooks);
-                console.log('Successfully refreshed currently reading books');
-            } catch (error) {
-                console.error('Failed to refresh currently reading books:', error);
-                Alert.alert(
-                    'Refresh Failed',
-                    'Could not update your reading progress. Please refresh manually.'
-                );
-            }
-        }
+        console.log('[HomeScreen] Session logged, refreshing data...');
+        await fetchCurrentlyReadingBooks();
     };
 
     return (
@@ -162,26 +157,56 @@ export default function HomeScreen() {
                     />
                 </View>
 
-                {/* Currently Reading Section */}
-                <BookSection
-                    title="Currently Reading"
-                    books={currentBooks}
-                    onBookPress={handleBookPress}
-                    onSeeAll={handleSeeAllCurrent}
-                    showProgress
-                    emptyMessage="Start reading a book to see it here"
-                    style={styles.section}
-                />
+                {/* Loading State */}
+                {loading && (
+                    <View style={styles.loadingContainer}>
+                        <ActivityIndicator size="large" color={colors.primary} />
+                        <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
+                            Loading your books...
+                        </Text>
+                    </View>
+                )}
 
-                {/* Trending Books Section */}
-                <BookSection
-                    title="Trending This Week"
-                    books={MOCK_TRENDING_BOOKS}
-                    onBookPress={handleBookPress}
-                    onSeeAll={handleSeeAllTrending}
-                    emptyMessage="No trending books available"
-                    style={styles.section}
-                />
+                {/* Error State */}
+                {!loading && error && (
+                    <View style={styles.errorContainer}>
+                        <Text style={[styles.errorText, { color: colors.error }]}>
+                            {error}
+                        </Text>
+                        <Text
+                            style={[styles.retryText, { color: colors.primary }]}
+                            onPress={fetchCurrentlyReadingBooks}
+                        >
+                            Tap to retry
+                        </Text>
+                    </View>
+                )}
+
+                {/* Currently Reading Section */}
+                {!loading && !error && (
+                    <BookSection
+                        title="Currently Reading"
+                        books={currentBooks}
+                        onBookPress={handleBookPress}
+                        onSeeAll={handleSeeAllCurrent}
+                        showProgress
+                        emptyMessage="Start reading a book to see it here"
+                        style={styles.section}
+                    />
+                )}
+
+                {/* Trending Books Section - Always show */}
+                {!loading && (
+                    <BookSection
+                        title="Trending This Week"
+                        books={MOCK_TRENDING_BOOKS}
+                        onBookPress={handleBookPress}
+                        onSeeAll={handleSeeAllTrending}
+                        emptyMessage="No trending books available"
+                        style={styles.section}
+                    />
+                )}
+
             </ScrollView>
 
             {/* Floating Action Button */}
@@ -230,5 +255,31 @@ const styles = StyleSheet.create({
     },
     section: {
         marginTop: Spacing.base,
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingVertical: Spacing.xl * 2,
+    },
+    loadingText: {
+        ...Typography.body,
+        marginTop: Spacing.base,
+    },
+    errorContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingVertical: Spacing.xl * 2,
+        paddingHorizontal: Spacing.lg,
+    },
+    errorText: {
+        ...Typography.body,
+        textAlign: 'center',
+        marginBottom: Spacing.base,
+    },
+    retryText: {
+        ...Typography.button,
+        textDecorationLine: 'underline',
     },
 });

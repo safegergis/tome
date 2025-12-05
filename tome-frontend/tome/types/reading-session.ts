@@ -51,12 +51,31 @@ export interface UserBookDTO {
     book: {
         id: number;
         title: string;
+        isbn10: string;
+        isbn13: string;
         coverUrl?: string;
         authorNames: string[];
+        // Book default values for pre-filling
+        pageCount?: number;
+        ebookPageCount?: number;
+        audioLengthSeconds?: number;
     };
     status: 'currently-reading' | 'want-to-read' | 'read' | 'did-not-finish';
     currentPage?: number;
+    currentSeconds?: number;
     progressPercentage?: number;
+
+    // User overrides
+    userPageCount?: number;
+    userAudioLengthSeconds?: number;
+
+    // Other backend DTO fields
+    personalRating?: number;
+    notes?: string;
+    startedAt?: string;
+    finishedAt?: string;
+    createdAt?: string;
+    updatedAt?: string;
 }
 
 /**

@@ -92,7 +92,6 @@ public class UserBookService {
 
     /**
      * Get all books for a user, optionally filtered by status
-     * This is the key method requested by the user
      */
     @Transactional(readOnly = true)
     public List<UserBookDTO> getUserBooksByStatus(Long userId, ReadingStatus status) {

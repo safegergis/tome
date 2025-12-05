@@ -133,8 +133,13 @@ export const readingSessionApi = {
             book: {
                 id: book.id,
                 title: book.title,
+                isbn: book.isbn10,
                 coverUrl: book.coverUrl,
                 authorNames: book.authors?.map((a: any) => a.name) || [],
+                // Include default values for pre-filling page count/audio length
+                pageCount: book.pageCount,
+                ebookPageCount: book.ebookPageCount,
+                audioLengthSeconds: book.audioLengthSeconds,
             },
             status: 'WANT_TO_READ' as const,
         }));
