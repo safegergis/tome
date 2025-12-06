@@ -79,6 +79,32 @@ export interface UserBookDTO {
 }
 
 /**
+ * Reading session with enriched book details (from backend GET endpoint)
+ * Used for displaying reading sessions in activity feeds
+ */
+export interface ReadingSessionDTO {
+    id: number;
+    bookId: number;
+    userId: number;
+    readingMethod: ReadingMethod;
+    minutesRead?: number;
+    pagesRead?: number;
+    startPage?: number;
+    endPage?: number;
+    sessionDate: string;
+    notes?: string;
+    createdAt: string;
+    // Enriched book details from backend
+    book: {
+        id: number;
+        title: string;
+        authorNames: string[];
+        isbn10?: string;
+        coverUrl?: string;
+    };
+}
+
+/**
  * Validation errors for reading session form
  */
 export interface ReadingSessionErrors {

@@ -116,14 +116,16 @@ public class ReadingSessionService {
 
                     // Update progress based on reading method
                     if (request.getReadingMethod() == ReadingMethod.AUDIOBOOK && request.getMinutesRead() != null) {
-                        int newSeconds = userBook.getCurrentSeconds() + (request.getMinutesRead() * 60);
+                        int currentSeconds = userBook.getCurrentSeconds() != null ? userBook.getCurrentSeconds() : 0;
+                        int newSeconds = currentSeconds + (request.getMinutesRead() * 60);
                         userBook.setCurrentSeconds(newSeconds);
                     } else if (request.getPagesRead() != null) {
                         // Use end_page if provided, otherwise add pages_read to current
                         if (request.getEndPage() != null) {
                             userBook.setCurrentPage(request.getEndPage());
                         } else {
-                            userBook.setCurrentPage(userBook.getCurrentPage() + request.getPagesRead());
+                            int currentPage = userBook.getCurrentPage() != null ? userBook.getCurrentPage() : 0;
+                            userBook.setCurrentPage(currentPage + request.getPagesRead());
                         }
                     }
 

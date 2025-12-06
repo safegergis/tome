@@ -5,6 +5,7 @@
 
 import { ENV } from '@/config/env';
 import { UserBookDTO } from '@/types/reading-session';
+import { apiClient } from './api-client';
 
 /**
  * Request payload for updating a user book
@@ -40,27 +41,15 @@ export const userBookApi = {
             fields: Object.keys(data),
         });
 
-        const response = await fetch(
+        const result = await apiClient.authenticatedFetch<UserBookDTO>(
             `${ENV.USER_DATA_API_URL}/user-books/${userBookId}`,
+            token,
             {
                 method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`,
-                },
                 body: JSON.stringify(data),
             }
         );
 
-        if (!response.ok) {
-            const error = await response.json().catch(() => ({
-                message: `HTTP error ${response.status}`,
-            }));
-            console.error('[userBookApi] Update failed:', error);
-            throw new Error(error.message || 'Failed to update user book');
-        }
-
-        const result = await response.json();
         console.log('[userBookApi] User book updated successfully');
         return result;
     },

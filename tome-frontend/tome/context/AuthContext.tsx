@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Alert } from 'react-native';
 import { authService, LoginRequest } from '@/services/auth.service';
+import { apiClient } from '@/services/api-client';
 
 // Storage key for auth token
 const AUTH_TOKEN_KEY = '@tome_auth_token';
@@ -35,6 +37,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Initialize auth state on mount
     useEffect(() => {
         initializeAuth();
+    }, []);
+
+    // Register logout callback with API client
+    useEffect(() => {
+        apiClient.setLogoutCallback(async () => {
+            // Show alert to user
+            Alert.alert(
+                'Session Expired',
+                'Your session has expired. Please log in again.',
+                [{ text: 'OK' }]
+            );
+
+            // Clear auth state
+            await clearAuth();
+        });
     }, []);
 
     // Check for existing token and user data on app launch

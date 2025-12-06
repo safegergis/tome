@@ -168,9 +168,9 @@ export default function SearchScreen() {
 
             {/* Header */}
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                    <Ionicons name="arrow-back" size={24} color={colors.text} />
-                </TouchableOpacity>
+                <Text style={[styles.headerTitle, { color: colors.text, fontFamily: Fonts.serif }]}>
+                    Search
+                </Text>
 
                 {/* Search Input */}
                 <View style={[styles.searchContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -267,18 +267,15 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: Spacing.base,
+        paddingHorizontal: Spacing.lg,
         paddingTop: Spacing.md,
         paddingBottom: Spacing.sm,
     },
-    backButton: {
-        padding: Spacing.sm,
-        marginRight: Spacing.xs,
+    headerTitle: {
+        ...Typography.h2,
+        marginBottom: Spacing.md,
     },
     searchContainer: {
-        flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
         borderRadius: BorderRadius.lg,

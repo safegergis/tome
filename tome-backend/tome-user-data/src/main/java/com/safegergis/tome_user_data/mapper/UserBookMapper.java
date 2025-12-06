@@ -61,13 +61,17 @@ public class UserBookMapper {
                 : bookSummary.getAudioLengthSeconds();
 
         // Calculate percentage based on what's available
-        if (effectivePageCount != null && effectivePageCount > 0 && userBook.getCurrentPage() != null) {
-            double percentage = (userBook.getCurrentPage().doubleValue() / effectivePageCount.doubleValue()) * 100.0;
+        // Prioritize audiobook progress if currentSeconds > 0 (user is listening to audiobook)
+        if (effectiveAudioLength != null && effectiveAudioLength > 0
+                && userBook.getCurrentSeconds() != null && userBook.getCurrentSeconds() > 0) {
+            double percentage = (userBook.getCurrentSeconds().doubleValue() / effectiveAudioLength.doubleValue()) * 100.0;
             return Math.min(percentage, 100.0); // Cap at 100%
         }
 
-        if (effectiveAudioLength != null && effectiveAudioLength > 0 && userBook.getCurrentSeconds() != null) {
-            double percentage = (userBook.getCurrentSeconds().doubleValue() / effectiveAudioLength.doubleValue()) * 100.0;
+        // Fall back to page-based progress if no audiobook progress
+        if (effectivePageCount != null && effectivePageCount > 0
+                && userBook.getCurrentPage() != null && userBook.getCurrentPage() > 0) {
+            double percentage = (userBook.getCurrentPage().doubleValue() / effectivePageCount.doubleValue()) * 100.0;
             return Math.min(percentage, 100.0); // Cap at 100%
         }
 
