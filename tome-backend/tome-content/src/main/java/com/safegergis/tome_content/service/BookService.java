@@ -5,6 +5,9 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -74,16 +77,33 @@ public class BookService {
     }
 
     /**
-     * Search books by title or author name
+     * Search books by title or author name (limited to 50 results)
+     * Uses PostgreSQL full-text search for improved performance
      *
      * @param query the search query to match against book title or author name
-     * @return list of book DTOs matching the search criteria
+     * @return list of up to 50 book DTOs matching the search criteria
      */
     @Transactional(readOnly = true)
     public List<BookDTO> searchBooks(String query) {
-        return bookRepository.searchByTitleOrAuthor(query).stream()
+        return bookRepository.searchByTitleOrAuthorFullText(query).stream()
                 .map(BookMapper::toDTO)
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Search books by title or author name with pagination and relevance ranking
+     * Uses PostgreSQL full-text search for optimal performance
+     *
+     * @param query the search query to match against book title or author name
+     * @param page the page number (0-indexed)
+     * @param size the page size (number of results per page)
+     * @return paginated list of book DTOs matching the search criteria, ordered by relevance
+     */
+    @Transactional(readOnly = true)
+    public Page<BookDTO> searchBooksPaginated(String query, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        return bookRepository.searchByTitleOrAuthorPaginated(query, pageable)
+                .map(BookMapper::toDTO);
     }
 
     /**

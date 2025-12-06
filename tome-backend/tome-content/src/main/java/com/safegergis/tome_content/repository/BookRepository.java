@@ -3,6 +3,8 @@ package com.safegergis.tome_content.repository;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -67,13 +69,54 @@ public interface BookRepository extends JpaRepository<Book, Long> {
     List<Book> findByLanguage(String language);
 
     /**
-     * Search books by title or author name (case-insensitive partial match)
+     * Search books by title or author name using PostgreSQL full-text search (non-paginated, limited to 50 results)
+     * Uses GIN indexes for improved performance
      *
      * @param searchTerm the search term to match against book title or author name
-     * @return list of books matching the search criteria
+     * @return list of up to 50 books matching the search criteria, ordered by id for consistency
      */
-    @Query("SELECT DISTINCT b FROM Book b LEFT JOIN b.authors a " +
-           "WHERE LOWER(b.title) LIKE LOWER(CONCAT('%', :searchTerm, '%')) " +
-           "OR LOWER(a.name) LIKE LOWER(CONCAT('%', :searchTerm, '%'))")
-    List<Book> searchByTitleOrAuthor(@Param("searchTerm") String searchTerm);
+    @Query(value = "SELECT DISTINCT b.* FROM books b " +
+           "LEFT JOIN book_authors ba ON b.id = ba.book_id " +
+           "LEFT JOIN authors a ON ba.author_id = a.id " +
+           "WHERE to_tsvector('english', b.title) @@ plainto_tsquery('english', :searchTerm) " +
+           "OR to_tsvector('english', a.name) @@ plainto_tsquery('english', :searchTerm) " +
+           "ORDER BY b.id " +
+           "LIMIT 50",
+           nativeQuery = true)
+    List<Book> searchByTitleOrAuthorFullText(@Param("searchTerm") String searchTerm);
+
+    /**
+     * Search books by title or author name with pagination and relevance ranking
+     * Uses UNION of two separate GIN index scans for optimal performance with 1M+ books
+     * Each sub-query uses its respective GIN index, then results are combined
+     *
+     * @param searchTerm the search term to match against book title or author name
+     * @param pageable pagination parameters (page, size, sort)
+     * @return paginated list of books matching the search criteria, ordered by relevance
+     */
+    @Query(value = "WITH search_results AS (" +
+           "  SELECT b.id, ts_rank(to_tsvector('english', b.title), plainto_tsquery('english', :searchTerm)) as rank " +
+           "  FROM books b " +
+           "  WHERE to_tsvector('english', b.title) @@ plainto_tsquery('english', :searchTerm) " +
+           "  UNION " +
+           "  SELECT DISTINCT b.id, ts_rank(to_tsvector('english', a.name), plainto_tsquery('english', :searchTerm)) as rank " +
+           "  FROM books b " +
+           "  JOIN book_authors ba ON b.id = ba.book_id " +
+           "  JOIN authors a ON ba.author_id = a.id " +
+           "  WHERE to_tsvector('english', a.name) @@ plainto_tsquery('english', :searchTerm) " +
+           ") " +
+           "SELECT b.* FROM search_results sr " +
+           "JOIN books b ON b.id = sr.id " +
+           "ORDER BY sr.rank DESC, b.id",
+           countQuery = "SELECT COUNT(DISTINCT id) FROM (" +
+                       "  SELECT b.id FROM books b " +
+                       "  WHERE to_tsvector('english', b.title) @@ plainto_tsquery('english', :searchTerm) " +
+                       "  UNION " +
+                       "  SELECT b.id FROM books b " +
+                       "  JOIN book_authors ba ON b.id = ba.book_id " +
+                       "  JOIN authors a ON ba.author_id = a.id " +
+                       "  WHERE to_tsvector('english', a.name) @@ plainto_tsquery('english', :searchTerm) " +
+                       ") AS combined",
+           nativeQuery = true)
+    Page<Book> searchByTitleOrAuthorPaginated(@Param("searchTerm") String searchTerm, Pageable pageable);
 }

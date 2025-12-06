@@ -14,7 +14,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Typography, Spacing, BorderRadius, Fonts } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { bookApi, BookDTO } from '@/services/api';
+import { bookApi, BookDTO, PaginatedResponse } from '@/services/api';
 import { authService, UserDTO } from '@/services/auth.service';
 import { BookCard } from '@/components/ui/book-card';
 import { UserCard } from '@/components/ui/user-card';
@@ -33,46 +33,86 @@ export default function SearchScreen() {
     const [bookResults, setBookResults] = useState<BookDTO[]>([]);
     const [userResults, setUserResults] = useState<UserDTO[]>([]);
 
-    // Debounced search function
-    const performSearch = useCallback(async (searchQuery: string, type: SearchType) => {
+    // Pagination state for books
+    const [bookPage, setBookPage] = useState(0);
+    const [hasMoreBooks, setHasMoreBooks] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
+
+    // Search function with pagination support for books
+    const performSearch = useCallback(async (
+        searchQuery: string,
+        type: SearchType,
+        pageNum: number = 0
+    ) => {
         if (!searchQuery.trim()) {
             setBookResults([]);
             setUserResults([]);
             setError(null);
+            setBookPage(0);
+            setHasMoreBooks(true);
             return;
         }
 
-        setLoading(true);
+        // Use loadingMore for pagination, loading for initial search
+        if (pageNum === 0) {
+            setLoading(true);
+        } else {
+            setLoadingMore(true);
+        }
         setError(null);
 
         try {
             if (type === 'books') {
-                const results = await bookApi.searchBooks(searchQuery);
-                setBookResults(results);
+                const response = await bookApi.searchBooks(searchQuery, pageNum, 20);
+
+                if (pageNum === 0) {
+                    // Initial search - replace results
+                    setBookResults(response.content);
+                } else {
+                    // Load more - append results
+                    setBookResults(prev => [...prev, ...response.content]);
+                }
+
+                setBookPage(pageNum);
+                setHasMoreBooks(!response.last);
             } else {
+                // Users search doesn't have pagination yet
                 const results = await authService.searchUsers(searchQuery);
                 setUserResults(results);
             }
         } catch (err) {
             console.error('Search error:', err);
             setError(err instanceof Error ? err.message : 'Search failed');
-            setBookResults([]);
-            setUserResults([]);
+            if (pageNum === 0) {
+                setBookResults([]);
+                setUserResults([]);
+            }
         } finally {
             setLoading(false);
+            setLoadingMore(false);
         }
     }, []);
 
-    // Handle query change with debouncing
+    // Handle query change with debouncing and reset pagination
     React.useEffect(() => {
         const timeoutId = setTimeout(() => {
             if (query) {
-                performSearch(query, searchType);
+                // Reset to page 0 when query changes
+                setBookPage(0);
+                setHasMoreBooks(true);
+                performSearch(query, searchType, 0);
             }
         }, 300); // 300ms debounce
 
         return () => clearTimeout(timeoutId);
     }, [query, searchType, performSearch]);
+
+    // Load more results for books
+    const loadMoreBooks = useCallback(() => {
+        if (!loading && !loadingMore && hasMoreBooks && query && searchType === 'books') {
+            performSearch(query, searchType, bookPage + 1);
+        }
+    }, [loading, loadingMore, hasMoreBooks, query, searchType, bookPage, performSearch]);
 
     // Clear results when switching tabs
     const handleTabChange = (type: SearchType) => {
@@ -158,6 +198,42 @@ export default function SearchScreen() {
             style={styles.resultCard}
         />
     );
+
+    // Render footer with Load More button for books
+    const renderFooter = () => {
+        if (searchType !== 'books' || !query || !hasMoreBooks) {
+            return null;
+        }
+
+        if (loadingMore) {
+            return (
+                <View style={styles.loadMoreContainer}>
+                    <ActivityIndicator size="small" color={colors.primary} />
+                    <Text style={[styles.loadMoreText, { color: colors.textSecondary }]}>
+                        Loading more...
+                    </Text>
+                </View>
+            );
+        }
+
+        // Only show Load More button if there are results and more to load
+        if (bookResults.length > 0) {
+            return (
+                <TouchableOpacity
+                    onPress={loadMoreBooks}
+                    disabled={loadingMore}
+                    style={[styles.loadMoreButton, { borderColor: colors.border }]}
+                >
+                    <Text style={[styles.loadMoreButtonText, { color: colors.primary }]}>
+                        Load More
+                    </Text>
+                    <Ionicons name="chevron-down" size={20} color={colors.primary} />
+                </TouchableOpacity>
+            );
+        }
+
+        return null;
+    };
 
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -253,6 +329,7 @@ export default function SearchScreen() {
                     keyExtractor={(item) => item.id.toString()}
                     contentContainerStyle={styles.resultsList}
                     ListEmptyComponent={renderEmptyState}
+                    ListFooterComponent={renderFooter}
                     key={searchType} // Force re-render when tab changes
                     numColumns={searchType === 'books' ? 2 : 1}
                     columnWrapperStyle={searchType === 'books' ? styles.row : undefined}
@@ -347,5 +424,32 @@ const styles = StyleSheet.create({
         ...Typography.body,
         textAlign: 'center',
         marginTop: Spacing.lg,
+    },
+    loadMoreContainer: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingVertical: Spacing.lg,
+        gap: Spacing.sm,
+    },
+    loadMoreText: {
+        ...Typography.bodySmall,
+        marginLeft: Spacing.sm,
+    },
+    loadMoreButton: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingVertical: Spacing.md,
+        paddingHorizontal: Spacing.lg,
+        marginHorizontal: Spacing.lg,
+        marginVertical: Spacing.md,
+        borderRadius: BorderRadius.md,
+        borderWidth: 1,
+        gap: Spacing.sm,
+    },
+    loadMoreButtonText: {
+        ...Typography.body,
+        fontWeight: '600',
     },
 });

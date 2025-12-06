@@ -125,6 +125,25 @@ export interface BookDTO {
 }
 
 /**
+ * Paginated response wrapper (matches Spring Boot Page<T>)
+ */
+export interface PaginatedResponse<T> {
+    content: T[];
+    totalElements: number;
+    totalPages: number;
+    number: number;
+    size: number;
+    first: boolean;
+    last: boolean;
+}
+
+/**
+ * Search cache for improved performance
+ */
+const searchCache = new Map<string, { data: PaginatedResponse<BookDTO>, timestamp: number }>();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+/**
  * Book API endpoints
  */
 export const bookApi = {
@@ -145,11 +164,37 @@ export const bookApi = {
     },
 
     /**
-     * Search books by title or author name
+     * Search books by title or author name with pagination and caching
+     * Uses PostgreSQL full-text search on the backend for optimal performance
+     *
+     * @param query the search query
+     * @param page the page number (0-indexed, default: 0)
+     * @param size the page size (default: 20)
+     * @returns paginated response with books matching the search query
      */
-    searchBooks: async (query: string): Promise<BookDTO[]> => {
-        console.log(`[bookApi] Calling searchBooks("${query}")`);
-        return apiRequest<BookDTO[]>(`/books/search?q=${encodeURIComponent(query)}`);
+    searchBooks: async (
+        query: string,
+        page: number = 0,
+        size: number = 20
+    ): Promise<PaginatedResponse<BookDTO>> => {
+        const cacheKey = `${query}:${page}:${size}`;
+        const cached = searchCache.get(cacheKey);
+
+        // Check cache first
+        if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+            console.log(`[bookApi] Cache hit for searchBooks("${query}", page=${page}, size=${size})`);
+            return cached.data;
+        }
+
+        console.log(`[bookApi] Calling searchBooks("${query}", page=${page}, size=${size})`);
+        const result = await apiRequest<PaginatedResponse<BookDTO>>(
+            `/books/search?q=${encodeURIComponent(query)}&page=${page}&size=${size}`
+        );
+
+        // Store in cache
+        searchCache.set(cacheKey, { data: result, timestamp: Date.now() });
+
+        return result;
     },
 
     /**

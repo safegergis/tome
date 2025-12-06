@@ -2,6 +2,7 @@ package com.safegergis.tome_content.controller;
 
 import java.util.List;
 
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -58,11 +59,32 @@ public class BookController {
     }
 
     /**
-     * GET /api/books/search?q={query} - Search books by title or author name
+     * GET /api/books/search?q={query}&page={page}&size={size} - Search books by title or author name
+     * Supports pagination with optional page and size parameters
+     * Uses PostgreSQL full-text search for optimal performance with relevance ranking
+     *
+     * @param q the search query
+     * @param page the page number (0-indexed, default: 0)
+     * @param size the page size (default: 20, max: 50)
+     * @return paginated list of books matching the search query, ordered by relevance
      */
     @GetMapping("/search")
-    public ResponseEntity<List<BookDTO>> searchBooks(@RequestParam String q) {
-        List<BookDTO> books = bookService.searchBooks(q);
+    public ResponseEntity<Page<BookDTO>> searchBooks(
+            @RequestParam String q,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+
+        // Enforce maximum page size
+        if (size > 50) {
+            size = 50;
+        }
+
+        // Enforce minimum page size
+        if (size < 1) {
+            size = 1;
+        }
+
+        Page<BookDTO> books = bookService.searchBooksPaginated(q, page, size);
         return ResponseEntity.ok(books);
     }
 

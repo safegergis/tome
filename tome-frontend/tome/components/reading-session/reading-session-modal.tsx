@@ -19,6 +19,7 @@ import {
   UserBookDTO,
 } from '@/types/reading-session';
 import { readingSessionApi } from '@/services/reading-session.service';
+import { userBookApi } from '@/services/user-book.service';
 import { useAuth } from '@/context/AuthContext';
 import {
   Colors,
@@ -48,6 +49,8 @@ export function ReadingSessionModal({
   const [formData, setFormData] = useState<Partial<ReadingSessionRequest>>({});
   const [isFormValid, setIsFormValid] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [markingFinished, setMarkingFinished] = useState(false);
+  const [markingDNF, setMarkingDNF] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Create a mock UserBookDTO for preselected book if ID is provided
@@ -112,8 +115,112 @@ export function ReadingSessionModal({
     }
   };
 
+  const handleMarkAsFinished = async () => {
+    if (!token) {
+      setError('You must be logged in to mark a book as finished');
+      return;
+    }
+
+    // Get the current book from formData
+    const bookId = formData.bookId;
+    if (!bookId) {
+      setError('Please select a book first');
+      return;
+    }
+
+    try {
+      setMarkingFinished(true);
+      setError(null);
+
+      // First, check if the book is already on the user's shelf
+      const allUserBooks = await userBookApi.getUserBooks(token);
+      const existingUserBook = allUserBooks.find(ub => ub.bookId === bookId);
+
+      if (existingUserBook) {
+        // Update existing book to 'read' status
+        await userBookApi.updateReadingStatus(existingUserBook.id, 'read', token);
+      } else {
+        // Add book to shelf with 'read' status
+        await userBookApi.addBookToShelf(bookId, 'READ', token);
+      }
+
+      Alert.alert(
+        'Success',
+        'Book marked as finished!',
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              onClose();
+              onSuccess?.();
+            },
+          },
+        ]
+      );
+    } catch (err) {
+      console.error('Failed to mark as finished:', err);
+      const errorMessage =
+        err instanceof Error ? err.message : 'Failed to mark book as finished';
+      setError(errorMessage);
+    } finally {
+      setMarkingFinished(false);
+    }
+  };
+
+  const handleMarkAsDNF = async () => {
+    if (!token) {
+      setError('You must be logged in to mark a book as DNF');
+      return;
+    }
+
+    // Get the current book from formData
+    const bookId = formData.bookId;
+    if (!bookId) {
+      setError('Please select a book first');
+      return;
+    }
+
+    try {
+      setMarkingDNF(true);
+      setError(null);
+
+      // First, check if the book is already on the user's shelf
+      const allUserBooks = await userBookApi.getUserBooks(token);
+      const existingUserBook = allUserBooks.find(ub => ub.bookId === bookId);
+
+      if (existingUserBook) {
+        // Mark existing book as DNF using the dedicated endpoint
+        await userBookApi.markAsDidNotFinish(existingUserBook.id, token);
+      } else {
+        // Add book to shelf with 'did-not-finish' status
+        await userBookApi.addBookToShelf(bookId, 'DID_NOT_FINISH', token);
+      }
+
+      Alert.alert(
+        'Success',
+        'Book marked as Did Not Finish',
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              onClose();
+              onSuccess?.();
+            },
+          },
+        ]
+      );
+    } catch (err) {
+      console.error('Failed to mark as DNF:', err);
+      const errorMessage =
+        err instanceof Error ? err.message : 'Failed to mark book as DNF';
+      setError(errorMessage);
+    } finally {
+      setMarkingDNF(false);
+    }
+  };
+
   const handleClose = () => {
-    if (loading) return; // Prevent closing while submitting
+    if (loading || markingFinished || markingDNF) return; // Prevent closing while submitting
 
     // Check if form has data and warn user
     if (formData.bookId || formData.pagesRead || formData.minutesRead) {
@@ -171,6 +278,10 @@ export function ReadingSessionModal({
             <ReadingSessionForm
               preselectedBook={preselectedBook}
               onFormDataChange={handleFormDataChange}
+              onMarkAsFinished={handleMarkAsFinished}
+              onMarkAsDNF={handleMarkAsDNF}
+              markingFinished={markingFinished}
+              markingDNF={markingDNF}
             />
 
             {/* Error Message */}
@@ -190,14 +301,14 @@ export function ReadingSessionModal({
               title="Cancel"
               variant="outlined"
               onPress={handleClose}
-              disabled={loading}
+              disabled={loading || markingFinished || markingDNF}
               style={styles.cancelButton}
             />
             <Button
               title="Log Session"
               variant="primary"
               onPress={handleSubmit}
-              disabled={!isFormValid || loading}
+              disabled={!isFormValid || loading || markingFinished || markingDNF}
               loading={loading}
               style={styles.submitButton}
             />

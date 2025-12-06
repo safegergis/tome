@@ -10,19 +10,28 @@ import { BookPicker } from '@/components/ui/book-picker';
 import { ReadingMethodSelector } from '@/components/reading-session/reading-method-selector';
 import { Input } from '@/components/ui/input';
 import { Collapsible } from '@/components/ui/collapsible';
+import { Button } from '@/components/ui/button';
 import { userBookApi } from '@/services/user-book.service';
 import { useAuth } from '@/context/AuthContext';
-import { Spacing, Colors } from '@/constants/theme';
+import { Spacing, Colors, Typography, Fonts } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 interface ReadingSessionFormProps {
     preselectedBook?: UserBookDTO | null;
     onFormDataChange?: (data: Partial<ReadingSessionRequest>, isValid: boolean) => void;
+    onMarkAsFinished?: () => void;
+    onMarkAsDNF?: () => void;
+    markingFinished?: boolean;
+    markingDNF?: boolean;
 }
 
 export function ReadingSessionForm({
     preselectedBook,
     onFormDataChange,
+    onMarkAsFinished,
+    onMarkAsDNF,
+    markingFinished = false,
+    markingDNF = false,
 }: ReadingSessionFormProps) {
     const { token } = useAuth();
     const colorScheme = useColorScheme();
@@ -227,6 +236,36 @@ export function ReadingSessionForm({
                 label="Reading Method *"
             />
 
+            {/* Quick Actions */}
+            {selectedBook && (
+                <View style={[styles.quickActionsSection, { backgroundColor: colors.backgroundAlt, borderColor: colors.border, borderWidth: 1 }]}>
+                    <Text style={[styles.quickActionsLabel, { color: colors.textSecondary, fontFamily: Fonts.sans }]}>
+                        Quick Actions
+                    </Text>
+                    <View style={styles.quickActionsRow}>
+                        <Button
+                            title="Mark as Finished"
+                            variant="outlined"
+                            onPress={onMarkAsFinished}
+                            style={styles.quickActionButton}
+                            disabled={markingFinished || markingDNF}
+                            loading={markingFinished}
+                        />
+                        <Button
+                            title="Mark as DNF"
+                            variant="outlined"
+                            onPress={onMarkAsDNF}
+                            style={styles.quickActionButton}
+                            disabled={markingFinished || markingDNF}
+                            loading={markingDNF}
+                        />
+                    </View>
+                    <Text style={[styles.quickActionsHint, { color: colors.textSecondary }]}>
+                        Or log a reading session below
+                    </Text>
+                </View>
+            )}
+
             {/* Conditional Fields: Audiobook */}
             {readingMethod === ReadingMethod.AUDIOBOOK && (
                 <Input
@@ -373,5 +412,31 @@ const styles = StyleSheet.create({
     helperText: {
         fontSize: 14,
         marginBottom: Spacing.sm,
+    },
+    quickActionsSection: {
+        marginTop: Spacing.md,
+        marginBottom: Spacing.md,
+        paddingVertical: Spacing.md,
+        paddingHorizontal: Spacing.md,
+        borderRadius: 8,
+        gap: Spacing.sm,
+    },
+    quickActionsLabel: {
+        ...Typography.bodySmall,
+        fontWeight: '600',
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+    },
+    quickActionsRow: {
+        flexDirection: 'row',
+        gap: Spacing.sm,
+    },
+    quickActionButton: {
+        flex: 1,
+    },
+    quickActionsHint: {
+        ...Typography.caption,
+        textAlign: 'center',
+        fontStyle: 'italic',
     },
 });

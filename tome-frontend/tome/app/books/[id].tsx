@@ -21,6 +21,9 @@ import { ReadingSessionModal } from '@/components/reading-session/reading-sessio
 import { AddToListSheet } from '@/components/list/add-to-list-sheet';
 import { CreateListModal } from '@/components/list/create-list-modal';
 import { bookApi, BookDTO } from '@/services/api';
+import { userBookApi } from '@/services/user-book.service';
+import { UserBookDTO } from '@/types/reading-session';
+import { useAuth } from '@/context/AuthContext';
 
 // Mock reviews - these would come from a reviews API endpoint
 const MOCK_REVIEWS: ReviewData[] = [
@@ -50,32 +53,52 @@ const MOCK_REVIEWS: ReviewData[] = [
     },
 ];
 
-type ReadingStatus = 'none' | 'want-to-read' | 'currently-reading' | 'read';
+type ReadingStatus = 'none' | 'want-to-read' | 'currently-reading' | 'read' | 'did-not-finish';
 
 export default function BookDetailsScreen() {
     const router = useRouter();
     const { id } = useLocalSearchParams();
     const colorScheme = useColorScheme();
     const colors = Colors[colorScheme ?? 'light'];
+    const { token } = useAuth();
 
     const [book, setBook] = useState<BookDTO | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [userBook, setUserBook] = useState<UserBookDTO | null>(null);
     const [readingStatus, setReadingStatus] = useState<ReadingStatus>('none');
+    const [statusUpdating, setStatusUpdating] = useState(false);
     const [userRating, setUserRating] = useState(0);
     const [notes, setNotes] = useState('');
     const [sessionModalVisible, setSessionModalVisible] = useState(false);
     const [addToListSheetVisible, setAddToListSheetVisible] = useState(false);
     const [createListModalVisible, setCreateListModalVisible] = useState(false);
 
-    // Fetch book data on component mount
+    // Fetch book data and user's reading status
     useEffect(() => {
-        async function fetchBook() {
+        async function fetchBookData() {
             try {
                 setLoading(true);
                 setError(null);
+
+                // Fetch book details
                 const bookData = await bookApi.getBookById(Number(id));
                 setBook(bookData);
+
+                // Fetch user's status for this book if logged in
+                if (token) {
+                    try {
+                        const allUserBooks = await userBookApi.getUserBooks(token);
+                        const existingUserBook = allUserBooks.find(ub => ub.bookId === Number(id));
+
+                        if (existingUserBook) {
+                            setUserBook(existingUserBook);
+                            setReadingStatus(existingUserBook.status);
+                        }
+                    } catch (err) {
+                        console.log('No existing user book found or error fetching:', err);
+                    }
+                }
             } catch (err) {
                 console.error('Error fetching book:', err);
                 setError(err instanceof Error ? err.message : 'Failed to load book');
@@ -85,9 +108,9 @@ export default function BookDetailsScreen() {
         }
 
         if (id) {
-            fetchBook();
+            fetchBookData();
         }
-    }, [id]);
+    }, [id, token]);
 
     const handleBack = () => {
         router.back();
@@ -104,6 +127,45 @@ export default function BookDetailsScreen() {
     const handleSessionLogged = () => {
         console.log('Session logged for book:', id);
         // Optionally refresh book data or show a success message
+    };
+
+    const handleStatusChange = async (newStatus: ReadingStatus) => {
+        if (!token || newStatus === 'none') return;
+
+        try {
+            setStatusUpdating(true);
+
+            // Convert frontend status to backend format
+            const backendStatus = newStatus.toUpperCase().replace(/-/g, '_') as
+                'WANT_TO_READ' | 'CURRENTLY_READING' | 'READ' | 'DID_NOT_FINISH';
+
+            let updatedUserBook: UserBookDTO;
+
+            if (userBook) {
+                // Update existing user book
+                updatedUserBook = await userBookApi.updateReadingStatus(
+                    userBook.id,
+                    newStatus,
+                    token
+                );
+            } else {
+                // Add new book to shelf
+                updatedUserBook = await userBookApi.addBookToShelf(
+                    Number(id),
+                    backendStatus,
+                    token
+                );
+            }
+
+            setUserBook(updatedUserBook);
+            setReadingStatus(newStatus);
+            console.log('Status updated successfully:', newStatus);
+        } catch (err) {
+            console.error('Error updating status:', err);
+            // Optionally show error to user
+        } finally {
+            setStatusUpdating(false);
+        }
     };
 
     const renderStars = (rating: number) => {
@@ -333,17 +395,26 @@ export default function BookDetailsScreen() {
                     <View style={styles.statusButtons}>
                         <Button
                             title="Want to Read"
-                            onPress={() => setReadingStatus('want-to-read')}
+                            onPress={() => handleStatusChange('want-to-read')}
                             variant={getStatusButtonStyle('want-to-read')}
                             style={styles.statusButton}
+                            disabled={statusUpdating}
+                            loading={statusUpdating && readingStatus === 'want-to-read'}
                         />
                         <Button
-                            title="Read"
-                            onPress={() => setReadingStatus('read')}
-                            variant={getStatusButtonStyle('read')}
+                            title="Currently Reading"
+                            onPress={() => handleStatusChange('currently-reading')}
+                            variant={getStatusButtonStyle('currently-reading')}
                             style={styles.statusButton}
+                            disabled={statusUpdating}
+                            loading={statusUpdating && readingStatus === 'currently-reading'}
                         />
                     </View>
+                    {(readingStatus === 'read' || readingStatus === 'did-not-finish') && (
+                        <Text style={[styles.statusNote, { color: colors.textSecondary }]}>
+                            Status: {readingStatus === 'read' ? 'Finished' : 'Did Not Finish'}
+                        </Text>
+                    )}
                     <Button
                         title="Add to List"
                         onPress={handleAddToList}
@@ -559,6 +630,11 @@ const styles = StyleSheet.create({
     },
     statusButton: {
         flex: 1,
+    },
+    statusNote: {
+        ...Typography.bodySmall,
+        marginTop: Spacing.sm,
+        fontStyle: 'italic',
     },
     reviewsHeader: {
         flexDirection: 'row',

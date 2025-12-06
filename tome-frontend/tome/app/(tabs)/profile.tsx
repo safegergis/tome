@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
     View,
     Text,
@@ -8,7 +8,7 @@ import {
     ActivityIndicator,
     TouchableOpacity,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Typography, Spacing, Fonts, BorderRadius, Shadows } from '@/constants/theme';
@@ -21,8 +21,10 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { Button } from '@/components/ui/button';
 import { readingSessionApi } from '@/services/reading-session.service';
 import { listApi } from '@/services/list.service';
-import { ReadingSessionDTO } from '@/types/reading-session';
+import { userBookApi } from '@/services/user-book.service';
+import { ReadingSessionDTO, UserBookDTO } from '@/types/reading-session';
 import { ListDTO } from '@/types/list';
+import { BookCard, BookData } from '@/components/ui/book-card';
 
 type ProfileView = 'activity' | 'lists';
 
@@ -47,16 +49,24 @@ export default function ProfileScreen() {
     const [listsLoading, setListsLoading] = useState(true);
     const [listsError, setListsError] = useState<string | null>(null);
 
+    // Currently Reading state
+    const [currentlyReading, setCurrentlyReading] = useState<UserBookDTO[]>([]);
+    const [currentlyReadingLoading, setCurrentlyReadingLoading] = useState(true);
+    const [currentlyReadingError, setCurrentlyReadingError] = useState<string | null>(null);
+
     // Friends count (placeholder for now)
     const friendsCount = 0;
 
-    // Fetch data on mount
-    useEffect(() => {
-        if (token) {
-            fetchRecentSessions(1);
-            fetchUserLists();
-        }
-    }, [token]);
+    // Refresh data whenever the screen comes into focus
+    useFocusEffect(
+        useCallback(() => {
+            if (token) {
+                fetchRecentSessions(1);
+                fetchUserLists();
+                fetchCurrentlyReading();
+            }
+        }, [token])
+    );
 
     const fetchRecentSessions = async (page: number) => {
         if (!token) return;
@@ -101,6 +111,23 @@ export default function ProfileScreen() {
         }
     };
 
+    const fetchCurrentlyReading = async () => {
+        if (!token) return;
+
+        try {
+            setCurrentlyReadingLoading(true);
+            setCurrentlyReadingError(null);
+
+            const books = await userBookApi.getUserBooks(token, 'currently-reading');
+            setCurrentlyReading(books);
+        } catch (error) {
+            console.error('[ProfileScreen] Failed to fetch currently reading:', error);
+            setCurrentlyReadingError('Failed to load currently reading books');
+        } finally {
+            setCurrentlyReadingLoading(false);
+        }
+    };
+
     const handleLoadMoreSessions = () => {
         if (!sessionsLoading && hasMoreSessions) {
             fetchRecentSessions(sessionsPage + 1);
@@ -122,6 +149,17 @@ export default function ProfileScreen() {
 
     const handleListPress = (listId: number) => {
         router.push(`/lists/${listId}`);
+    };
+
+    const convertUserBookToBookData = (userBook: UserBookDTO): BookData => {
+        return {
+            id: userBook.book.id.toString(),
+            title: userBook.book.title,
+            author: userBook.book.authorNames.join(', '),
+            isbn: userBook.book.isbn13 || userBook.book.isbn10 || '',
+            coverUrl: userBook.book.coverUrl,
+            progress: userBook.progressPercentage ? Math.round(userBook.progressPercentage) : undefined,
+        };
     };
 
     const viewOptions: SegmentedControlOption[] = [
@@ -179,6 +217,59 @@ export default function ProfileScreen() {
                         </Text>
                     </TouchableOpacity>
                 </View>
+
+                {/* Currently Reading Shelf */}
+                <View style={styles.currentlyReadingSection}>
+                    <Text style={[styles.sectionTitle, { color: colors.text, fontFamily: Fonts.serif }]}>
+                        Currently Reading
+                    </Text>
+
+                    {currentlyReadingLoading ? (
+                        <View style={styles.loadingContainer}>
+                            <ActivityIndicator size="small" color={colors.primary} />
+                        </View>
+                    ) : currentlyReadingError ? (
+                        <View style={styles.errorContainer}>
+                            <Text style={[styles.errorText, { color: colors.error }]}>
+                                {currentlyReadingError}
+                            </Text>
+                        </View>
+                    ) : currentlyReading.length === 0 ? (
+                        <View style={styles.emptyShelfContainer}>
+                            <Text style={[styles.emptyShelfText, { color: colors.textSecondary }]}>
+                                No books currently being read
+                            </Text>
+                        </View>
+                    ) : (
+                        <ScrollView
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            contentContainerStyle={styles.shelfScrollContent}
+                        >
+                            {currentlyReading.map((userBook) => (
+                                <BookCard
+                                    key={userBook.id}
+                                    book={convertUserBookToBookData(userBook)}
+                                    onPress={() => handleBookPress(userBook.book.id.toString())}
+                                    showProgress={true}
+                                    style={styles.shelfBookCard}
+                                />
+                            ))}
+                        </ScrollView>
+                    )}
+                </View>
+
+                {/* View All Shelves Link */}
+                <TouchableOpacity
+                    onPress={() => router.push('/shelves')}
+                    style={styles.viewAllShelvesButton}
+                    activeOpacity={0.7}
+                >
+                    <Text style={[styles.viewAllShelvesText, { color: colors.primary }]}>
+                        View All Shelves
+                    </Text>
+                    <Ionicons name="chevron-forward" size={16} color={colors.primary} />
+                </TouchableOpacity>
 
                 {/* View Selector (Activity / Lists) */}
                 <View style={styles.viewSelector}>
@@ -347,6 +438,47 @@ const styles = StyleSheet.create({
     friendsLabel: {
         ...Typography.bodySmall,
         marginTop: Spacing.xs / 2,
+    },
+    currentlyReadingSection: {
+        paddingVertical: Spacing.lg,
+        paddingLeft: Spacing.lg,
+    },
+    sectionTitle: {
+        ...Typography.h3,
+        marginBottom: Spacing.md,
+        paddingRight: Spacing.lg,
+    },
+    shelfScrollContent: {
+        paddingRight: Spacing.lg,
+        gap: Spacing.md,
+    },
+    shelfBookCard: {
+        width: 140,
+    },
+    emptyShelfContainer: {
+        paddingVertical: Spacing.lg,
+        paddingHorizontal: Spacing.lg,
+        alignItems: 'center',
+    },
+    emptyShelfText: {
+        ...Typography.bodySmall,
+        fontStyle: 'italic',
+    },
+    errorContainer: {
+        paddingVertical: Spacing.md,
+        paddingHorizontal: Spacing.lg,
+    },
+    viewAllShelvesButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'flex-end',
+        paddingHorizontal: Spacing.lg,
+        paddingVertical: Spacing.md,
+        gap: Spacing.xs,
+    },
+    viewAllShelvesText: {
+        ...Typography.body,
+        fontWeight: '600',
     },
     viewSelector: {
         paddingHorizontal: Spacing.lg,
