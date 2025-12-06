@@ -16,6 +16,8 @@ import { BookData } from '@/components/ui/book-card';
 import { FloatingActionButton } from '@/components/ui/floating-action-button';
 import { ReadingSessionModal } from '@/components/reading-session/reading-session-modal';
 import { EmptyState } from '@/components/ui/empty-state';
+import { SpeedDialMenu } from '@/components/ui/speed-dial-menu';
+import { CreateListModal } from '@/components/list/create-list-modal';
 
 const MOCK_TRENDING_BOOKS: BookData[] = [
     {
@@ -50,6 +52,8 @@ export default function HomeScreen() {
     const colorScheme = useColorScheme();
     const colors = Colors[colorScheme ?? 'light'];
     const [sessionModalVisible, setSessionModalVisible] = useState(false);
+    const [speedDialOpen, setSpeedDialOpen] = useState(false);
+    const [createListModalVisible, setCreateListModalVisible] = useState(false);
 
     const handleSearchPress = () => {
         // Search is now a tab, so no need to navigate
@@ -134,14 +138,38 @@ export default function HomeScreen() {
 
             {/* Floating Action Button */}
             <FloatingActionButton
-                onPress={() => setSessionModalVisible(true)}
+                onPress={() => setSpeedDialOpen(true)}
                 bottom={Spacing.lg}
+            />
+
+            {/* Speed Dial Menu */}
+            <SpeedDialMenu
+                visible={speedDialOpen}
+                onClose={() => setSpeedDialOpen(false)}
+                onLogReading={() => {
+                    setSpeedDialOpen(false);
+                    setSessionModalVisible(true);
+                }}
+                onCreateList={() => {
+                    setSpeedDialOpen(false);
+                    setCreateListModalVisible(true);
+                }}
             />
 
             {/* Reading Session Modal */}
             <ReadingSessionModal
                 visible={sessionModalVisible}
                 onClose={() => setSessionModalVisible(false)}
+            />
+
+            {/* Create List Modal */}
+            <CreateListModal
+                visible={createListModalVisible}
+                onClose={() => setCreateListModalVisible(false)}
+                onSuccess={(listId) => {
+                    setCreateListModalVisible(false);
+                    router.push(`/lists/${listId}`);
+                }}
             />
 
         </SafeAreaView>

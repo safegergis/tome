@@ -18,6 +18,8 @@ import { Button } from '@/components/ui/button';
 import { ReviewCard, ReviewData } from '@/components/ui/review-card';
 import { FloatingActionButton } from '@/components/ui/floating-action-button';
 import { ReadingSessionModal } from '@/components/reading-session/reading-session-modal';
+import { AddToListSheet } from '@/components/list/add-to-list-sheet';
+import { CreateListModal } from '@/components/list/create-list-modal';
 import { bookApi, BookDTO } from '@/services/api';
 
 // Mock reviews - these would come from a reviews API endpoint
@@ -63,6 +65,8 @@ export default function BookDetailsScreen() {
     const [userRating, setUserRating] = useState(0);
     const [notes, setNotes] = useState('');
     const [sessionModalVisible, setSessionModalVisible] = useState(false);
+    const [addToListSheetVisible, setAddToListSheetVisible] = useState(false);
+    const [createListModalVisible, setCreateListModalVisible] = useState(false);
 
     // Fetch book data on component mount
     useEffect(() => {
@@ -90,7 +94,11 @@ export default function BookDetailsScreen() {
     };
 
     const handleAddToList = () => {
-        console.log('Add to list');
+        setAddToListSheetVisible(true);
+    };
+
+    const handleCreateListFromSheet = () => {
+        setCreateListModalVisible(true);
     };
 
     const handleSessionLogged = () => {
@@ -389,6 +397,25 @@ export default function BookDetailsScreen() {
                 onClose={() => setSessionModalVisible(false)}
                 onSuccess={handleSessionLogged}
                 preselectedBookId={book?.id || null}
+            />
+
+            {/* Add to List Sheet */}
+            <AddToListSheet
+                visible={addToListSheetVisible}
+                onClose={() => setAddToListSheetVisible(false)}
+                bookId={book?.id || 0}
+                onSuccess={() => console.log('Book added to list')}
+                onCreateList={handleCreateListFromSheet}
+            />
+
+            {/* Create List Modal */}
+            <CreateListModal
+                visible={createListModalVisible}
+                onClose={() => setCreateListModalVisible(false)}
+                onSuccess={(listId) => {
+                    setCreateListModalVisible(false);
+                    console.log('List created:', listId);
+                }}
             />
         </SafeAreaView>
     );

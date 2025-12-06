@@ -96,8 +96,19 @@ class ApiClient {
                 throw new Error(errorMessage);
             }
 
-            // Parse and return successful response
-            return response.json() as Promise<T>;
+            // Handle successful responses with no content (204 No Content, 201 Created with no body)
+            if (response.status === 204 || response.headers.get('content-length') === '0') {
+                return undefined as T;
+            }
+
+            // Check if response has content
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+                return response.json() as Promise<T>;
+            }
+
+            // For non-JSON responses or empty bodies, return undefined
+            return undefined as T;
         } catch (error) {
             // Re-throw TokenExpiredError and other errors
             if (error instanceof TokenExpiredError) {
@@ -157,8 +168,19 @@ class ApiClient {
                 throw new Error(errorMessage);
             }
 
-            // Parse and return successful response
-            return response.json() as Promise<T>;
+            // Handle successful responses with no content (204 No Content, 201 Created with no body)
+            if (response.status === 204 || response.headers.get('content-length') === '0') {
+                return undefined as T;
+            }
+
+            // Check if response has content
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+                return response.json() as Promise<T>;
+            }
+
+            // For non-JSON responses or empty bodies, return undefined
+            return undefined as T;
         } catch (error) {
             // Re-throw or wrap errors
             if (error instanceof Error) {

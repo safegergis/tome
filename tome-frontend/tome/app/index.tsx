@@ -15,7 +15,7 @@ export default function Index() {
   }
 
   // Redirect based on authentication state
-  return <Redirect href={isAuthenticated ? '/home' : '/welcome'} />;
+  return <Redirect href={isAuthenticated ? '/(tabs)/' : '/(auth)/login'} />;
 }
 
 const styles = StyleSheet.create({

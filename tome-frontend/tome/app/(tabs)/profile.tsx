@@ -10,7 +10,8 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { Colors, Typography, Spacing, Fonts, BorderRadius } from '@/constants/theme';
+import { Ionicons } from '@expo/vector-icons';
+import { Colors, Typography, Spacing, Fonts, BorderRadius, Shadows } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useAuth } from '@/context/AuthContext';
 import { UserPhotoPlaceholder } from '@/components/ui/user-photo-placeholder';
@@ -18,11 +19,10 @@ import { ReadingSessionCard } from '@/components/ui/reading-session-card';
 import { SegmentedControl, SegmentedControlOption } from '@/components/ui/segmented-control';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Button } from '@/components/ui/button';
-import { BookCard } from '@/components/ui/book-card';
 import { readingSessionApi } from '@/services/reading-session.service';
 import { listApi } from '@/services/list.service';
 import { ReadingSessionDTO } from '@/types/reading-session';
-import { ListDTO, ListType, BookSummaryDTO } from '@/types/list';
+import { ListDTO } from '@/types/list';
 
 type ProfileView = 'activity' | 'lists';
 
@@ -44,11 +44,8 @@ export default function ProfileScreen() {
 
     // Lists state
     const [lists, setLists] = useState<ListDTO[]>([]);
-    const [selectedListId, setSelectedListId] = useState<number | null>(null);
-    const [selectedListBooks, setSelectedListBooks] = useState<BookSummaryDTO[]>([]);
     const [listsLoading, setListsLoading] = useState(true);
     const [listsError, setListsError] = useState<string | null>(null);
-    const [booksLoading, setBooksLoading] = useState(false);
 
     // Friends count (placeholder for now)
     const friendsCount = 0;
@@ -96,41 +93,11 @@ export default function ProfileScreen() {
 
             const allLists = await listApi.getUserLists(token);
             setLists(allLists);
-
-            // Auto-select "Want to Read" list as default
-            const wantToReadList = allLists.find(
-                (l) => l.listType === ListType.WANT_TO_READ
-            );
-
-            if (wantToReadList) {
-                await selectList(wantToReadList.id);
-            } else if (allLists.length > 0) {
-                // Fallback to first list if no Want to Read list exists
-                await selectList(allLists[0].id);
-            }
         } catch (error) {
             console.error('[ProfileScreen] Failed to fetch lists:', error);
             setListsError('Failed to load lists');
         } finally {
             setListsLoading(false);
-        }
-    };
-
-    const selectList = async (listId: number) => {
-        if (!token) return;
-
-        try {
-            setSelectedListId(listId);
-            setBooksLoading(true);
-
-            // Fetch list with books
-            const listWithBooks = await listApi.getList(listId, true, token);
-            setSelectedListBooks(listWithBooks.books || []);
-        } catch (error) {
-            console.error('[ProfileScreen] Failed to fetch list books:', error);
-            setSelectedListBooks([]);
-        } finally {
-            setBooksLoading(false);
         }
     };
 
@@ -153,24 +120,14 @@ export default function ProfileScreen() {
         console.log('Friends pressed');
     };
 
-    // Transform BookSummaryDTO to BookCard format
-    const transformBookToCardData = (book: BookSummaryDTO) => ({
-        id: book.id.toString(),
-        title: book.title,
-        author: book.authorNames.join(', '),
-        isbn: book.isbn10,
-        coverUrl: book.coverUrl,
-    });
+    const handleListPress = (listId: number) => {
+        router.push(`/lists/${listId}`);
+    };
 
     const viewOptions: SegmentedControlOption[] = [
         { value: 'activity', label: 'Activity' },
         { value: 'lists', label: 'Lists' },
     ];
-
-    const listOptions: SegmentedControlOption[] = lists.map((list) => ({
-        value: list.id.toString(),
-        label: list.name,
-    }));
 
     if (!user) {
         return (
@@ -307,54 +264,46 @@ export default function ProfileScreen() {
                                 message="Create your first list to organize your books"
                             />
                         ) : (
-                            <>
-                                {/* List Toggle Pills */}
-                                <View style={styles.listPillsContainer}>
-                                    {listOptions.length <= 4 ? (
-                                        <SegmentedControl
-                                            options={listOptions}
-                                            selectedValue={selectedListId?.toString() || ''}
-                                            onValueChange={(val) => selectList(parseInt(val))}
-                                        />
-                                    ) : (
-                                        <ScrollView
-                                            horizontal
-                                            showsHorizontalScrollIndicator={false}
-                                            contentContainerStyle={styles.scrollablePills}
-                                        >
-                                            <SegmentedControl
-                                                options={listOptions}
-                                                selectedValue={selectedListId?.toString() || ''}
-                                                onValueChange={(val) => selectList(parseInt(val))}
-                                            />
-                                        </ScrollView>
-                                    )}
-                                </View>
-
-                                {/* Books Grid */}
-                                {booksLoading ? (
-                                    <View style={styles.loadingContainer}>
-                                        <ActivityIndicator size="small" color={colors.primary} />
-                                    </View>
-                                ) : selectedListBooks.length === 0 ? (
-                                    <EmptyState
-                                        icon="book-outline"
-                                        title="No Books"
-                                        message="This list is empty. Add some books to get started!"
-                                    />
-                                ) : (
-                                    <View style={styles.booksGrid}>
-                                        {selectedListBooks.map((book) => (
-                                            <View key={book.id} style={styles.bookCardWrapper}>
-                                                <BookCard
-                                                    book={transformBookToCardData(book)}
-                                                    onPress={() => handleBookPress(book.id.toString())}
-                                                />
+                            <View style={styles.listsContainer}>
+                                {lists.map((list) => (
+                                    <TouchableOpacity
+                                        key={list.id}
+                                        style={[styles.listCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                                        onPress={() => handleListPress(list.id)}
+                                        activeOpacity={0.7}
+                                    >
+                                        <View style={styles.listCardContent}>
+                                            <View style={styles.listCardHeader}>
+                                                <Text style={[styles.listCardName, { color: colors.text, fontFamily: Fonts.serif }]}>
+                                                    {list.name}
+                                                </Text>
+                                                <View style={styles.listCardMeta}>
+                                                    <View style={styles.listCardMetaItem}>
+                                                        <Ionicons name="book-outline" size={14} color={colors.textSecondary} />
+                                                        <Text style={[styles.listCardMetaText, { color: colors.textSecondary, fontFamily: Fonts.sans }]}>
+                                                            {list.bookCount}
+                                                        </Text>
+                                                    </View>
+                                                    {!list.isPublic && (
+                                                        <View style={styles.listCardMetaItem}>
+                                                            <Ionicons name="lock-closed-outline" size={14} color={colors.textSecondary} />
+                                                        </View>
+                                                    )}
+                                                </View>
                                             </View>
-                                        ))}
-                                    </View>
-                                )}
-                            </>
+                                            {list.description && (
+                                                <Text
+                                                    style={[styles.listCardDescription, { color: colors.textSecondary, fontFamily: Fonts.sans }]}
+                                                    numberOfLines={2}
+                                                >
+                                                    {list.description}
+                                                </Text>
+                                            )}
+                                        </View>
+                                        <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
                         )}
                     </View>
                 )}
@@ -422,20 +371,50 @@ const styles = StyleSheet.create({
     loadMoreButton: {
         marginTop: Spacing.base,
     },
-    listPillsContainer: {
-        marginBottom: Spacing.base,
+    listsContainer: {
+        gap: Spacing.md,
     },
-    scrollablePills: {
-        paddingRight: Spacing.lg,
-    },
-    booksGrid: {
+    listCard: {
         flexDirection: 'row',
-        flexWrap: 'wrap',
-        marginHorizontal: -Spacing.xs,
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: Spacing.base,
+        borderRadius: BorderRadius.md,
+        borderWidth: 1,
+        ...Shadows.sm,
     },
-    bookCardWrapper: {
-        width: '50%',
-        paddingHorizontal: Spacing.xs,
-        marginBottom: Spacing.md,
+    listCardContent: {
+        flex: 1,
+        marginRight: Spacing.md,
+    },
+    listCardHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: Spacing.xs,
+    },
+    listCardName: {
+        ...Typography.h3,
+        fontSize: 18,
+        flex: 1,
+        marginRight: Spacing.sm,
+    },
+    listCardMeta: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: Spacing.sm,
+    },
+    listCardMetaItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: Spacing.xs,
+    },
+    listCardMetaText: {
+        ...Typography.bodySmall,
+        fontWeight: '600',
+    },
+    listCardDescription: {
+        ...Typography.bodySmall,
+        lineHeight: 18,
     },
 });

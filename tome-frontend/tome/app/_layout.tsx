@@ -8,7 +8,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 
 export const unstable_settings = {
-    initialRouteName: 'welcome',
+    initialRouteName: 'index',
 };
 
 function RootNavigator() {
@@ -21,13 +21,14 @@ function RootNavigator() {
         if (isLoading) return;
 
         const inAuthGroup = segments[0] === '(auth)';
+        const inTabsGroup = segments[0] === '(tabs)';
 
-        if (!isAuthenticated && !inAuthGroup) {
-            // User is not authenticated, redirect to login
+        if (!isAuthenticated && !inAuthGroup && segments[0] !== 'welcome') {
+            // User is not authenticated and not on auth or welcome, redirect to login
             router.replace('/(auth)/login');
         } else if (isAuthenticated && inAuthGroup) {
             // User is authenticated but on auth screen, redirect to tabs
-            router.replace('/(tabs)');
+            router.replace('/(tabs)/');
         }
     }, [isAuthenticated, isLoading, segments]);
 
@@ -37,9 +38,11 @@ function RootNavigator() {
                 headerShown: false,
             }}
         >
+            <Stack.Screen name="index" />
             <Stack.Screen name="welcome" />
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="books/[id]" />
+            <Stack.Screen name="lists/[id]" />
             <Stack.Screen name="(auth)" />
         </Stack>
     );

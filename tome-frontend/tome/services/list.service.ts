@@ -176,4 +176,29 @@ export const listApi = {
 
     console.log('[listApi] Removed book from list');
   },
+
+  /**
+   * Reorder books in a list
+   */
+  reorderBooks: async (
+    listId: number,
+    bookIds: number[],
+    token: string
+  ): Promise<void> => {
+    console.log('[listApi] Reordering books in list', listId, 'New order:', bookIds);
+
+    await apiClient.authenticatedFetch<void>(
+      `${LISTS_API_URL}/${listId}/books/order`,
+      token,
+      {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(bookIds),
+      }
+    );
+
+    console.log('[listApi] Books reordered successfully');
+  },
 };
