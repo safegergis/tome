@@ -59,7 +59,7 @@ export default function VerifyEmailScreen() {
         [
           {
             text: 'Continue',
-            onPress: () => router.replace('/home'),
+            onPress: () => router.replace('/(tabs)/'),
           },
         ]
       );

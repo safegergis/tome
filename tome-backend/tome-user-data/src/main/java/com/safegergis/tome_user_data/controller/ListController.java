@@ -56,13 +56,26 @@ public class ListController {
     }
 
     /**
-     * Get all lists for the user
+     * Get all lists for a user
+     * If userId is provided, returns that user's public lists (or all if own)
+     * If userId is not provided, returns authenticated user's lists
      */
     @GetMapping
-    public ResponseEntity<List<ListDTO>> getUserLists() {
-        log.info("GET /api/lists");
-        List<ListDTO> lists = listService.getUserLists(getAuthenticatedUserId());
-        return ResponseEntity.ok(lists);
+    public ResponseEntity<List<ListDTO>> getUserLists(
+            @RequestParam(required = false) Long userId) {
+        Long authenticatedUserId = getAuthenticatedUserId();
+
+        if (userId == null) {
+            // Default behavior: get authenticated user's lists
+            log.info("GET /api/lists - User {}", authenticatedUserId);
+            List<ListDTO> lists = listService.getUserLists(authenticatedUserId);
+            return ResponseEntity.ok(lists);
+        } else {
+            // Get specific user's lists (public only unless requesting own)
+            log.info("GET /api/lists?userId={} - Requested by User {}", userId, authenticatedUserId);
+            List<ListDTO> lists = listService.getPublicUserLists(authenticatedUserId, userId);
+            return ResponseEntity.ok(lists);
+        }
     }
 
     /**

@@ -61,4 +61,50 @@ public interface UserBookRepository extends JpaRepository<UserBook, Long> {
      */
     @Query(value = "SELECT COUNT(*) FROM user_books WHERE user_id = :userId AND status = CAST(:status AS reading_status)", nativeQuery = true)
     long countByUserIdAndStatus(@Param("userId") Long userId, @Param("status") String status);
+
+    /**
+     * Find recent finished books for multiple users (for activity feed)
+     */
+    @Query("SELECT ub FROM UserBook ub WHERE ub.userId IN :userIds " +
+           "AND ub.finishedAt IS NOT NULL " +
+           "ORDER BY ub.finishedAt DESC")
+    List<UserBook> findRecentFinishedByUserIds(
+        @Param("userIds") List<Long> userIds,
+        Pageable pageable);
+
+    // ==================== Statistics Queries ====================
+
+    /**
+     * Get average rating for a user's books
+     */
+    @Query("SELECT AVG(ub.personalRating) FROM UserBook ub WHERE ub.userId = :userId AND ub.personalRating IS NOT NULL")
+    Double getAverageRating(@Param("userId") Long userId);
+
+    /**
+     * Get DNF reasons breakdown
+     * Returns: dnfReason (String), count (Long)
+     */
+    @Query(value = """
+        SELECT dnf_reason, COUNT(id) as count
+        FROM user_books
+        WHERE user_id = :userId
+          AND status = CAST('DID_NOT_FINISH' AS reading_status)
+          AND dnf_reason IS NOT NULL
+        GROUP BY dnf_reason
+        ORDER BY count DESC
+        """, nativeQuery = true)
+    List<Object[]> getDnfReasonCounts(@Param("userId") Long userId);
+
+    /**
+     * Get average days to complete a book for a user
+     */
+    @Query(value = """
+        SELECT AVG(EXTRACT(DAY FROM (finished_at - started_at)))
+        FROM user_books
+        WHERE user_id = :userId
+          AND status = CAST('READ' AS reading_status)
+          AND started_at IS NOT NULL
+          AND finished_at IS NOT NULL
+        """, nativeQuery = true)
+    Double getAverageDaysToComplete(@Param("userId") Long userId);
 }

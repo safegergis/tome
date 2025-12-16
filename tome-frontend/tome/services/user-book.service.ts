@@ -34,19 +34,31 @@ export interface CreateUserBookRequest {
 export const userBookApi = {
     /**
      * Get user books by status
-     * @param status - Optional reading status filter (currently-reading, want-to-read, read, did-not-finish)
      * @param token - JWT authentication token
+     * @param status - Optional reading status filter (currently-reading, want-to-read, read, did-not-finish)
+     * @param userId - Optional user ID to fetch another user's books (only currently-reading supported for privacy)
      * @returns List of user books
      */
     getUserBooks: async (
         token: string,
-        status?: 'currently-reading' | 'want-to-read' | 'read' | 'did-not-finish'
+        status?: 'currently-reading' | 'want-to-read' | 'read' | 'did-not-finish',
+        userId?: number
     ): Promise<UserBookDTO[]> => {
-        console.log('[userBookApi] Fetching user books:', { status });
+        console.log('[userBookApi] Fetching user books:', { status, userId });
 
-        const url = status
-            ? `${ENV.USER_DATA_API_URL}/user-books?status=${status}`
-            : `${ENV.USER_DATA_API_URL}/user-books`;
+        let url = `${ENV.USER_DATA_API_URL}/user-books`;
+        const params = new URLSearchParams();
+
+        if (status) {
+            params.append('status', status);
+        }
+        if (userId) {
+            params.append('userId', userId.toString());
+        }
+
+        if (params.toString()) {
+            url += `?${params.toString()}`;
+        }
 
         const result = await apiClient.authenticatedFetch<UserBookDTO[]>(url, token);
 

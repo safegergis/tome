@@ -14,6 +14,7 @@ interface FloatingActionButtonProps {
   icon?: keyof typeof Ionicons.glyphMap;
   size?: number;
   bottom?: number;
+  right?: number;
   style?: ViewStyle;
   accessibilityLabel?: string;
   accessibilityHint?: string;
@@ -24,6 +25,7 @@ export function FloatingActionButton({
   icon = 'add',
   size = 56,
   bottom = 24,
+  right,
   style,
   accessibilityLabel = 'Log reading session',
   accessibilityHint = 'Opens a form to log your reading progress',
@@ -52,6 +54,7 @@ export function FloatingActionButton({
     <Animated.View
       style={[
         styles.container,
+        right !== undefined ? { right } : { alignSelf: 'center' },
         {
           bottom,
           transform: [{ scale: scaleAnim }],
@@ -86,7 +89,6 @@ export function FloatingActionButton({
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    alignSelf: 'center',
     zIndex: 1000,
   },
   button: {

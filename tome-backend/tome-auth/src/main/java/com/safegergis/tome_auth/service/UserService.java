@@ -13,7 +13,7 @@ import com.safegergis.tome_auth.models.User;
 import com.safegergis.tome_auth.models.VerificationToken;
 import com.safegergis.tome_auth.repositories.UserRepository;
 import com.safegergis.tome_auth.repositories.VerificationTokenRepository;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -205,5 +205,45 @@ public class UserService {
         return userRepository.searchByUsername(query).stream()
                 .map(UserMapper::toDTO)
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Get user profile by ID with friends count
+     * Email is only included if the requesting user is viewing their own profile
+     *
+     * @param targetUserId ID of the user profile to retrieve
+     * @param token JWT token for extracting requesting user ID and inter-service calls
+     * @param userDataServiceClient client for calling user-data service
+     * @return UserProfileDTO with all profile information
+     */
+    @Transactional(readOnly = true)
+    public com.safegergis.tome_auth.dto.UserProfileDTO getUserProfile(
+            Long targetUserId,
+            String token,
+            com.safegergis.tome_auth.service.UserDataServiceClient userDataServiceClient) {
+
+        // Extract requesting user ID from token
+        Long requestingUserId = jwtService.extractUserId(token);
+        log.info("User {} requesting profile for user {}", requestingUserId, targetUserId);
+
+        // Find target user
+        User targetUser = userRepository.findById(targetUserId)
+                .orElseThrow(() -> new RuntimeException("User not found with id: " + targetUserId));
+
+        // Get friends count from user-data service
+        Long friendsCount = userDataServiceClient.getFriendsCount(targetUserId, token);
+
+        // Build profile DTO
+        boolean isOwnProfile = requestingUserId.equals(targetUserId);
+
+        return com.safegergis.tome_auth.dto.UserProfileDTO.builder()
+                .id(targetUser.getId())
+                .username(targetUser.getUsername())
+                .email(isOwnProfile ? targetUser.getEmail() : null) // Only include email for own profile
+                .avatarUrl(targetUser.getAvatarUrl())
+                .bio(targetUser.getBio())
+                .createdAt(targetUser.getCreatedAt())
+                .friendsCount(friendsCount)
+                .build();
     }
 }

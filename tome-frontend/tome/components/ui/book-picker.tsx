@@ -22,6 +22,7 @@ import {
   Spacing,
   BorderRadius,
   Shadows,
+  Fonts,
 } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
@@ -128,11 +129,11 @@ export function BookPicker({
         </View>
       )}
       <View style={styles.bookInfo}>
-        <Text style={[styles.bookTitle, { color: colors.text }]} numberOfLines={2}>
+        <Text style={[styles.bookTitle, { color: colors.text, fontFamily: Fonts.serif }]} numberOfLines={2}>
           {item.book.title}
         </Text>
-        <Text style={[styles.bookAuthor, { color: colors.textSecondary }]} numberOfLines={1}>
-          {item.book.authorNames.join(', ')}
+        <Text style={[styles.bookAuthor, { color: colors.textSecondary, fontFamily: Fonts.serif }]} numberOfLines={1}>
+          {item.book.authorNames?.join(', ') || 'Unknown Author'}
         </Text>
       </View>
       <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
@@ -144,7 +145,7 @@ export function BookPicker({
   return (
     <View style={styles.container}>
       {label && (
-        <Text style={[styles.label, { color: colors.text }]}>{label}</Text>
+        <Text style={[styles.label, { color: colors.text, fontFamily: Fonts.serif }]}>{label}</Text>
       )}
 
       <TouchableOpacity
@@ -170,16 +171,16 @@ export function BookPicker({
               </View>
             )}
             <View style={styles.selectedBookInfo}>
-              <Text style={[styles.selectedBookTitle, { color: colors.text }]} numberOfLines={1}>
+              <Text style={[styles.selectedBookTitle, { color: colors.text, fontFamily: Fonts.serif }]} numberOfLines={1}>
                 {selectedBook.book.title}
               </Text>
-              <Text style={[styles.selectedBookAuthor, { color: colors.textSecondary }]} numberOfLines={1}>
-                {selectedBook.book.authorNames.join(', ')}
+              <Text style={[styles.selectedBookAuthor, { color: colors.textSecondary, fontFamily: Fonts.serif }]} numberOfLines={1}>
+                {selectedBook.book.authorNames?.join(', ') || 'Unknown Author'}
               </Text>
             </View>
           </View>
         ) : (
-          <Text style={[styles.placeholderText, { color: colors.textSecondary }]}>
+          <Text style={[styles.placeholderText, { color: colors.textSecondary, fontFamily: Fonts.serif }]}>
             Select a book
           </Text>
         )}
@@ -187,7 +188,7 @@ export function BookPicker({
       </TouchableOpacity>
 
       {error && (
-        <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
+        <Text style={[styles.errorText, { color: colors.error, fontFamily: Fonts.sans }]}>{error}</Text>
       )}
 
       {/* Book Selection Modal */}
@@ -199,7 +200,7 @@ export function BookPicker({
         <SafeAreaView style={[styles.modalContainer, { backgroundColor: colors.background }]}>
           {/* Header */}
           <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>Select Book</Text>
+            <Text style={[styles.modalTitle, { color: colors.text, fontFamily: Fonts.serif }]}>Select Book</Text>
             <TouchableOpacity onPress={() => setModalVisible(false)}>
               <Ionicons name="close" size={28} color={colors.text} />
             </TouchableOpacity>
@@ -218,7 +219,7 @@ export function BookPicker({
           {/* Section Title */}
           {!searchQuery.trim() && (
             <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+              <Text style={[styles.sectionTitle, { color: colors.textSecondary, fontFamily: Fonts.sans }]}>
                 Currently Reading
               </Text>
             </View>
@@ -239,7 +240,7 @@ export function BookPicker({
           ) : (
             <View style={styles.emptyContainer}>
               <Ionicons name="book-outline" size={48} color={colors.textSecondary} />
-              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+              <Text style={[styles.emptyText, { color: colors.textSecondary, fontFamily: Fonts.serif }]}>
                 {searchQuery.trim()
                   ? 'No books found'
                   : 'No books currently reading.\nSearch to add one.'}

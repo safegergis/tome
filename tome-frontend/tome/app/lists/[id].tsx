@@ -214,7 +214,7 @@ export default function ListDisplayScreen() {
   const transformBookToCardData = (book: BookSummaryDTO): BookData => ({
     id: book.id.toString(),
     title: book.title,
-    author: book.authorNames.join(', ') || 'Unknown Author',
+    author: book.authorNames?.join(', ') || 'Unknown Author',
     isbn: book.isbn10 || book.isbn13 || '',
     coverUrl: book.coverUrl,
   });

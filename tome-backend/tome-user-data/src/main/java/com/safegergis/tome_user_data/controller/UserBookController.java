@@ -49,30 +49,65 @@ public class UserBookController {
 
     /**
      * Get user's books, optionally filtered by status
+     * If userId is provided, returns that user's public books (currently-reading only for privacy)
+     * If userId is not provided, returns authenticated user's books
+     *
      * Examples:
-     * - GET /api/user-books (all books)
+     * - GET /api/user-books (all authenticated user's books)
      * - GET /api/user-books?status=currently-reading
-     * - GET /api/user-books?status=read
-     * - GET /api/user-books?status=want-to-read
-     * - GET /api/user-books?status=did-not-finish
+     * - GET /api/user-books?userId=123&status=currently-reading (other user's currently reading)
      */
     @GetMapping
     public ResponseEntity<List<UserBookDTO>> getUserBooks(
-            @RequestParam(required = false) String status) {
-        log.info("GET /api/user-books?status={}", status);
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) Long userId) {
 
-        ReadingStatus readingStatus = null;
-        if (status != null && !status.isEmpty()) {
-            try {
-                readingStatus = ReadingStatus.fromString(status);
-            } catch (IllegalArgumentException e) {
-                log.warn("Invalid status parameter: {}", status);
-                return ResponseEntity.badRequest().build();
+        Long authenticatedUserId = getAuthenticatedUserId();
+
+        // If no userId provided, return authenticated user's books
+        if (userId == null) {
+            log.info("GET /api/user-books?status={} - User {}", status, authenticatedUserId);
+
+            ReadingStatus readingStatus = null;
+            if (status != null && !status.isEmpty()) {
+                try {
+                    readingStatus = ReadingStatus.fromString(status);
+                } catch (IllegalArgumentException e) {
+                    log.warn("Invalid status parameter: {}", status);
+                    return ResponseEntity.badRequest().build();
+                }
             }
-        }
 
-        List<UserBookDTO> books = userBookService.getUserBooksByStatus(getAuthenticatedUserId(), readingStatus);
-        return ResponseEntity.ok(books);
+            List<UserBookDTO> books = userBookService.getUserBooksByStatus(authenticatedUserId, readingStatus);
+            return ResponseEntity.ok(books);
+        } else {
+            // Requesting another user's books
+            log.info("GET /api/user-books?userId={}&status={} - Requested by User {}",
+                    userId, status, authenticatedUserId);
+
+            // Parse status (required for other users to limit to currently-reading for privacy)
+            ReadingStatus readingStatus;
+            if (status != null && !status.isEmpty()) {
+                try {
+                    readingStatus = ReadingStatus.fromString(status);
+                } catch (IllegalArgumentException e) {
+                    log.warn("Invalid status parameter: {}", status);
+                    return ResponseEntity.badRequest().build();
+                }
+
+                // Only allow currently-reading status for other users (privacy)
+                if (readingStatus != ReadingStatus.CURRENTLY_READING) {
+                    log.warn("Attempted to access restricted status {} for user {}", status, userId);
+                    return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+                }
+            } else {
+                // Default to currently-reading for other users
+                readingStatus = ReadingStatus.CURRENTLY_READING;
+            }
+
+            List<UserBookDTO> books = userBookService.getUserBooksByStatus(userId, readingStatus);
+            return ResponseEntity.ok(books);
+        }
     }
 
     /**

@@ -128,6 +128,19 @@ export function ReadingSessionForm({
         }
     }, [selectedBook?.bookId, readingMethod]);
 
+    // Auto-calculate pages read when start and end pages are entered
+    useEffect(() => {
+        if (startPage && endPage) {
+            const start = parseInt(startPage, 10);
+            const end = parseInt(endPage, 10);
+
+            if (!isNaN(start) && !isNaN(end) && end > start) {
+                const calculated = end - start + 1;
+                setPagesRead(String(calculated));
+            }
+        }
+    }, [startPage, endPage]);
+
     // Update user override handler
     const handleUpdateUserOverride = useCallback(
         async (field: 'userPageCount' | 'userAudioLengthSeconds', value: number | undefined) => {
@@ -260,7 +273,7 @@ export function ReadingSessionForm({
                             loading={markingDNF}
                         />
                     </View>
-                    <Text style={[styles.quickActionsHint, { color: colors.textSecondary }]}>
+                    <Text style={[styles.quickActionsHint, { color: colors.textSecondary, fontFamily: Fonts.sans }]}>
                         Or log a reading session below
                     </Text>
                 </View>
@@ -331,7 +344,7 @@ export function ReadingSessionForm({
                 <View style={styles.collapsibleContainer}>
                     <Collapsible title="Book Details">
                         <View style={styles.advancedContent}>
-                            <Text style={[styles.helperText, { color: colors.textSecondary }]}>
+                            <Text style={[styles.helperText, { color: colors.textSecondary, fontFamily: Fonts.sans }]}>
                                 Customize the total page count or audio length if your edition differs.
                             </Text>
 

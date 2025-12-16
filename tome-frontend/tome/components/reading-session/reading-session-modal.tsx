@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ReadingSessionForm } from '@/components/reading-session/reading-session-form';
@@ -20,12 +21,14 @@ import {
 } from '@/types/reading-session';
 import { readingSessionApi } from '@/services/reading-session.service';
 import { userBookApi } from '@/services/user-book.service';
+import { bookApi } from '@/services/api';
 import { useAuth } from '@/context/AuthContext';
 import {
   Colors,
   Typography,
   Spacing,
   BorderRadius,
+  Fonts,
 } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
@@ -52,20 +55,51 @@ export function ReadingSessionModal({
   const [markingFinished, setMarkingFinished] = useState(false);
   const [markingDNF, setMarkingDNF] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [preselectedBook, setPreselectedBook] = useState<UserBookDTO | null>(null);
+  const [loadingBook, setLoadingBook] = useState(false);
 
-  // Create a mock UserBookDTO for preselected book if ID is provided
-  const preselectedBook: UserBookDTO | null = preselectedBookId
-    ? {
-        id: 0,
-        bookId: preselectedBookId,
-        book: {
-          id: preselectedBookId,
-          title: 'Loading...',
-          authorNames: [],
-        },
-        status: 'CURRENTLY_READING',
+  // Fetch book details when preselectedBookId changes
+  useEffect(() => {
+    async function fetchPreselectedBook() {
+      if (!preselectedBookId) {
+        setPreselectedBook(null);
+        return;
       }
-    : null;
+
+      try {
+        setLoadingBook(true);
+        const bookData = await bookApi.getBookById(preselectedBookId);
+
+        // Convert BookDTO to UserBookDTO format
+        const userBook: UserBookDTO = {
+          id: 0, // Not a user book yet
+          bookId: bookData.id,
+          book: {
+            id: bookData.id,
+            title: bookData.title,
+            isbn: bookData.isbn10,
+            coverUrl: bookData.coverUrl,
+            authorNames: bookData.authors?.map(a => a.name) || [],
+            pageCount: bookData.pageCount,
+            ebookPageCount: bookData.ebookPageCount,
+            audioLengthSeconds: bookData.audioLengthSeconds,
+          },
+          status: 'CURRENTLY_READING',
+        };
+
+        setPreselectedBook(userBook);
+      } catch (err) {
+        console.error('Failed to fetch preselected book:', err);
+        setError('Failed to load book details. Please try again.');
+      } finally {
+        setLoadingBook(false);
+      }
+    }
+
+    if (visible) {
+      fetchPreselectedBook();
+    }
+  }, [preselectedBookId, visible]);
 
   const handleFormDataChange = (
     data: Partial<ReadingSessionRequest>,
@@ -257,7 +291,7 @@ export function ReadingSessionModal({
         >
           {/* Header */}
           <View style={[styles.header, { borderBottomColor: colors.border }]}>
-            <Text style={[styles.title, { color: colors.text }]}>
+            <Text style={[styles.title, { color: colors.text, fontFamily: Fonts.serif }]}>
               Log Reading Session
             </Text>
             <TouchableOpacity
@@ -275,20 +309,29 @@ export function ReadingSessionModal({
             contentContainerStyle={styles.scrollContent}
             keyboardShouldPersistTaps="handled"
           >
-            <ReadingSessionForm
-              preselectedBook={preselectedBook}
-              onFormDataChange={handleFormDataChange}
-              onMarkAsFinished={handleMarkAsFinished}
-              onMarkAsDNF={handleMarkAsDNF}
-              markingFinished={markingFinished}
-              markingDNF={markingDNF}
-            />
+            {loadingBook ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={colors.primary} />
+                <Text style={[styles.loadingText, { color: colors.textSecondary, fontFamily: Fonts.serif }]}>
+                  Loading book details...
+                </Text>
+              </View>
+            ) : (
+              <ReadingSessionForm
+                preselectedBook={preselectedBook}
+                onFormDataChange={handleFormDataChange}
+                onMarkAsFinished={handleMarkAsFinished}
+                onMarkAsDNF={handleMarkAsDNF}
+                markingFinished={markingFinished}
+                markingDNF={markingDNF}
+              />
+            )}
 
             {/* Error Message */}
             {error && (
               <View style={[styles.errorContainer, { backgroundColor: colors.error + '15' }]}>
                 <Ionicons name="alert-circle" size={20} color={colors.error} />
-                <Text style={[styles.errorText, { color: colors.error }]}>
+                <Text style={[styles.errorText, { color: colors.error, fontFamily: Fonts.sans }]}>
                   {error}
                 </Text>
               </View>
@@ -346,6 +389,16 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingVertical: Spacing.lg,
     paddingBottom: Spacing.xl,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: Spacing.xl * 2,
+  },
+  loadingText: {
+    ...Typography.body,
+    marginTop: Spacing.base,
   },
   errorContainer: {
     flexDirection: 'row',

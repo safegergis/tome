@@ -1,5 +1,7 @@
 package com.safegergis.tome_user_data.service;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -53,6 +55,28 @@ public class BookServiceClient {
             log.error("Error fetching book {} from tome-content service: {}", bookId, e.getMessage());
             throw e;
         }
+    }
+
+    /**
+     * Fetch multiple books at once (batch operation)
+     * Useful for enriching activity feeds and paginated results
+     */
+    public Map<Long, BookSummaryDTO> getBooks(Set<Long> bookIds) {
+        log.debug("Fetching {} books from tome-content service", bookIds.size());
+
+        Map<Long, BookSummaryDTO> books = new HashMap<>();
+        for (Long bookId : bookIds) {
+            try {
+                BookSummaryDTO book = getBook(bookId);
+                books.put(bookId, book);
+            } catch (Exception e) {
+                log.warn("Failed to fetch book {}: {}", bookId, e.getMessage());
+                // Add fallback book on error
+                books.put(bookId, getBookFallback(bookId, e));
+            }
+        }
+
+        return books;
     }
 
     /**
@@ -115,5 +139,54 @@ public class BookServiceClient {
     static class AuthorDTO {
         private Long id;
         private String name;
+    }
+
+    /**
+     * Inner DTO for receiving Genre data from tome-content
+     */
+    @lombok.Data
+    @lombok.NoArgsConstructor
+    @lombok.AllArgsConstructor
+    static class GenreDTO {
+        private Long id;
+        private String name;
+    }
+
+    /**
+     * Extended BookDTO with full details including genres
+     */
+    @lombok.Data
+    @lombok.NoArgsConstructor
+    @lombok.AllArgsConstructor
+    static class BookDetailDTO extends BookDTO {
+        private Set<GenreDTO> genres;
+    }
+
+    /**
+     * Fetch multiple books with full details (genres and authors)
+     * Used for statistics aggregation
+     */
+    public Map<Long, BookDetailDTO> getBooksWithDetails(Set<Long> bookIds) {
+        log.debug("Fetching {} books with full details from tome-content service", bookIds.size());
+
+        Map<Long, BookDetailDTO> books = new HashMap<>();
+        for (Long bookId : bookIds) {
+            try {
+                String url = contentServiceUrl + "/api/books/" + bookId;
+                BookDetailDTO book = restTemplate.getForObject(url, BookDetailDTO.class);
+
+                if (book != null) {
+                    books.put(bookId, book);
+                } else {
+                    log.warn("Book {} returned null from tome-content service", bookId);
+                }
+            } catch (HttpClientErrorException.NotFound e) {
+                log.warn("Book {} not found in tome-content service", bookId);
+            } catch (Exception e) {
+                log.error("Error fetching book {} with details: {}", bookId, e.getMessage());
+            }
+        }
+
+        return books;
     }
 }

@@ -55,8 +55,8 @@ export default function LoginScreen() {
             // Call the login function from AuthContext
             await login(email, password);
 
-            // Navigate to home on successful login
-            router.replace('/home');
+            // Navigate to tabs on successful login
+            router.replace('/(tabs)/');
         } catch (error: any) {
             const errorMessage = error.message || '';
 

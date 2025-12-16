@@ -3,6 +3,7 @@ package com.safegergis.tome_user_data.repository;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -45,4 +46,14 @@ public interface BookListRepository extends JpaRepository<BookList, Long> {
      * Find a list by ID if it's not deleted
      */
     Optional<BookList> findByIdAndDeletedAtIsNull(Long id);
+
+    /**
+     * Find recent public lists created by multiple users (for activity feed)
+     */
+    @Query("SELECT l FROM BookList l WHERE l.userId IN :userIds " +
+           "AND l.isPublic = true AND l.deletedAt IS NULL " +
+           "ORDER BY l.createdAt DESC")
+    List<BookList> findRecentPublicListsByUserIds(
+        @Param("userIds") List<Long> userIds,
+        Pageable pageable);
 }

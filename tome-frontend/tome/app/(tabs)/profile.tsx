@@ -19,9 +19,11 @@ import { ReadingSessionCard } from '@/components/ui/reading-session-card';
 import { SegmentedControl, SegmentedControlOption } from '@/components/ui/segmented-control';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { readingSessionApi } from '@/services/reading-session.service';
 import { listApi } from '@/services/list.service';
 import { userBookApi } from '@/services/user-book.service';
+import { friendshipApi } from '@/services/friendship.service';
 import { ReadingSessionDTO, UserBookDTO } from '@/types/reading-session';
 import { ListDTO } from '@/types/list';
 import { BookCard, BookData } from '@/components/ui/book-card';
@@ -32,7 +34,7 @@ export default function ProfileScreen() {
     const router = useRouter();
     const colorScheme = useColorScheme();
     const colors = Colors[colorScheme ?? 'light'];
-    const { user, token } = useAuth();
+    const { user, token, logout } = useAuth();
 
     // View state
     const [currentView, setCurrentView] = useState<ProfileView>('activity');
@@ -54,8 +56,9 @@ export default function ProfileScreen() {
     const [currentlyReadingLoading, setCurrentlyReadingLoading] = useState(true);
     const [currentlyReadingError, setCurrentlyReadingError] = useState<string | null>(null);
 
-    // Friends count (placeholder for now)
-    const friendsCount = 0;
+    // Friends state
+    const [friendsCount, setFriendsCount] = useState(0);
+    const [pendingRequestCount, setPendingRequestCount] = useState(0);
 
     // Refresh data whenever the screen comes into focus
     useFocusEffect(
@@ -64,6 +67,8 @@ export default function ProfileScreen() {
                 fetchRecentSessions(1);
                 fetchUserLists();
                 fetchCurrentlyReading();
+                fetchFriendsCount();
+                fetchPendingRequestCount();
             }
         }, [token])
     );
@@ -128,6 +133,30 @@ export default function ProfileScreen() {
         }
     };
 
+    const fetchFriendsCount = async () => {
+        if (!token) return;
+
+        try {
+            const count = await friendshipApi.getFriendsCount(token);
+            setFriendsCount(count);
+        } catch (error) {
+            console.error('[ProfileScreen] Failed to fetch friends count:', error);
+            // Non-critical error, don't show to user
+        }
+    };
+
+    const fetchPendingRequestCount = async () => {
+        if (!token) return;
+
+        try {
+            const count = await friendshipApi.getPendingRequestCount(token);
+            setPendingRequestCount(count);
+        } catch (error) {
+            console.error('[ProfileScreen] Failed to fetch pending request count:', error);
+            // Non-critical error, don't show to user
+        }
+    };
+
     const handleLoadMoreSessions = () => {
         if (!sessionsLoading && hasMoreSessions) {
             fetchRecentSessions(sessionsPage + 1);
@@ -143,20 +172,29 @@ export default function ProfileScreen() {
     };
 
     const handleFriendsPress = () => {
-        // TODO: Navigate to friends list screen
-        console.log('Friends pressed');
+        router.push(`/friends/${user?.userId}`);
     };
 
     const handleListPress = (listId: number) => {
         router.push(`/lists/${listId}`);
     };
 
+    const handleSignOut = async () => {
+        try {
+            await logout();
+            router.replace('/(auth)/login');
+        } catch (error) {
+            console.error('[ProfileScreen] Failed to sign out:', error);
+        }
+    };
+
     const convertUserBookToBookData = (userBook: UserBookDTO): BookData => {
         return {
             id: userBook.book.id.toString(),
             title: userBook.book.title,
-            author: userBook.book.authorNames.join(', '),
-            isbn: userBook.book.isbn13 || userBook.book.isbn10 || '',
+            author: userBook.book.authorNames?.join(', ') || 'Unknown Author',
+            isbn10: userBook.book.isbn10,
+            isbn13: userBook.book.isbn13,
             coverUrl: userBook.book.coverUrl,
             progress: userBook.progressPercentage ? Math.round(userBook.progressPercentage) : undefined,
         };
@@ -183,6 +221,44 @@ export default function ProfileScreen() {
         <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
             <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
 
+            {/* Header with Icon Buttons */}
+            <View style={styles.headerBar}>
+                <View style={styles.headerLeft} />
+                <View style={styles.headerRight}>
+                    {/* Statistics Icon Button */}
+                    <TouchableOpacity
+                        style={[styles.iconButton, { backgroundColor: colors.surface }]}
+                        onPress={() => router.push('/statistics')}
+                        activeOpacity={0.7}
+                    >
+                        <Ionicons name="stats-chart-outline" size={24} color={colors.primary} />
+                    </TouchableOpacity>
+
+                    {/* Friend Requests Icon Button */}
+                    <TouchableOpacity
+                        style={[styles.iconButton, { backgroundColor: colors.surface }]}
+                        onPress={() => router.push('/friend-requests')}
+                        activeOpacity={0.7}
+                    >
+                        <Ionicons name="mail-outline" size={24} color={colors.primary} />
+                        {pendingRequestCount > 0 && (
+                            <View style={styles.iconBadge}>
+                                <Badge count={pendingRequestCount} style={styles.badgeSmall} />
+                            </View>
+                        )}
+                    </TouchableOpacity>
+
+                    {/* Sign Out Icon Button */}
+                    <TouchableOpacity
+                        style={[styles.iconButton, { backgroundColor: colors.surface }]}
+                        onPress={handleSignOut}
+                        activeOpacity={0.7}
+                    >
+                        <Ionicons name="log-out-outline" size={24} color={colors.error} />
+                    </TouchableOpacity>
+                </View>
+            </View>
+
             <ScrollView
                 style={styles.scrollView}
                 contentContainerStyle={styles.scrollContent}
@@ -199,9 +275,6 @@ export default function ProfileScreen() {
                     >
                         {user.username}
                     </Text>
-                    <Text style={[styles.memberSince, { color: colors.textSecondary }]}>
-                        Member since 2024
-                    </Text>
 
                     {/* Friends Count */}
                     <TouchableOpacity
@@ -215,14 +288,30 @@ export default function ProfileScreen() {
                         <Text style={[styles.friendsLabel, { color: colors.textSecondary }]}>
                             {friendsCount === 1 ? 'Friend' : 'Friends'}
                         </Text>
+                        <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
                     </TouchableOpacity>
                 </View>
 
+                {/* Divider */}
+                <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
                 {/* Currently Reading Shelf */}
                 <View style={styles.currentlyReadingSection}>
-                    <Text style={[styles.sectionTitle, { color: colors.text, fontFamily: Fonts.serif }]}>
-                        Currently Reading
-                    </Text>
+                    <View style={styles.sectionHeader}>
+                        <Text style={[styles.sectionTitle, { color: colors.text, fontFamily: Fonts.serif }]}>
+                            Currently Reading
+                        </Text>
+                        <TouchableOpacity
+                            onPress={() => router.push('/shelves')}
+                            style={styles.viewMoreButton}
+                            activeOpacity={0.7}
+                        >
+                            <Text style={[styles.viewMoreText, { color: colors.primary, fontFamily: Fonts.sans }]}>
+                                View More
+                            </Text>
+                            <Ionicons name="chevron-forward" size={14} color={colors.primary} />
+                        </TouchableOpacity>
+                    </View>
 
                     {currentlyReadingLoading ? (
                         <View style={styles.loadingContainer}>
@@ -259,17 +348,8 @@ export default function ProfileScreen() {
                     )}
                 </View>
 
-                {/* View All Shelves Link */}
-                <TouchableOpacity
-                    onPress={() => router.push('/shelves')}
-                    style={styles.viewAllShelvesButton}
-                    activeOpacity={0.7}
-                >
-                    <Text style={[styles.viewAllShelvesText, { color: colors.primary }]}>
-                        View All Shelves
-                    </Text>
-                    <Ionicons name="chevron-forward" size={16} color={colors.primary} />
-                </TouchableOpacity>
+                {/* Divider */}
+                <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
                 {/* View Selector (Activity / Lists) */}
                 <View style={styles.viewSelector}>
@@ -364,34 +444,33 @@ export default function ProfileScreen() {
                                         activeOpacity={0.7}
                                     >
                                         <View style={styles.listCardContent}>
-                                            <View style={styles.listCardHeader}>
-                                                <Text style={[styles.listCardName, { color: colors.text, fontFamily: Fonts.serif }]}>
+                                            <View style={styles.listCardTop}>
+                                                <Text
+                                                    style={[styles.listCardName, { color: colors.text, fontFamily: Fonts.serif }]}
+                                                    numberOfLines={1}
+                                                >
                                                     {list.name}
                                                 </Text>
-                                                <View style={styles.listCardMeta}>
-                                                    <View style={styles.listCardMetaItem}>
-                                                        <Ionicons name="book-outline" size={14} color={colors.textSecondary} />
-                                                        <Text style={[styles.listCardMetaText, { color: colors.textSecondary, fontFamily: Fonts.sans }]}>
-                                                            {list.bookCount}
-                                                        </Text>
-                                                    </View>
-                                                    {!list.isPublic && (
-                                                        <View style={styles.listCardMetaItem}>
-                                                            <Ionicons name="lock-closed-outline" size={14} color={colors.textSecondary} />
-                                                        </View>
-                                                    )}
-                                                </View>
+                                                {!list.isPublic && (
+                                                    <Ionicons name="lock-closed-outline" size={14} color={colors.textSecondary} />
+                                                )}
                                             </View>
-                                            {list.description && (
-                                                <Text
-                                                    style={[styles.listCardDescription, { color: colors.textSecondary, fontFamily: Fonts.sans }]}
-                                                    numberOfLines={2}
-                                                >
-                                                    {list.description}
-                                                </Text>
-                                            )}
+                                            <Text
+                                                style={[styles.listCardDescription, { color: colors.textSecondary, fontFamily: Fonts.serif }]}
+                                                numberOfLines={2}
+                                            >
+                                                {list.description || 'No description'}
+                                            </Text>
+                                            <View style={styles.listCardFooter}>
+                                                <View style={styles.listCardMetaItem}>
+                                                    <Ionicons name="book-outline" size={14} color={colors.textSecondary} />
+                                                    <Text style={[styles.listCardMetaText, { color: colors.textSecondary, fontFamily: Fonts.sans }]}>
+                                                        {list.bookCount} {list.bookCount === 1 ? 'book' : 'books'}
+                                                    </Text>
+                                                </View>
+                                                <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
+                                            </View>
                                         </View>
-                                        <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
                                     </TouchableOpacity>
                                 ))}
                             </View>
@@ -407,6 +486,39 @@ const styles = StyleSheet.create({
     safeArea: {
         flex: 1,
     },
+    headerBar: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: Spacing.lg,
+        paddingVertical: Spacing.md,
+    },
+    headerLeft: {
+        flex: 1,
+    },
+    headerRight: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: Spacing.sm,
+    },
+    iconButton: {
+        width: 44,
+        height: 44,
+        borderRadius: BorderRadius.md,
+        justifyContent: 'center',
+        alignItems: 'center',
+        position: 'relative',
+        ...Shadows.sm,
+    },
+    iconBadge: {
+        position: 'absolute',
+        top: -4,
+        right: -4,
+    },
+    badgeSmall: {
+        minWidth: 18,
+        height: 18,
+    },
     scrollView: {
         flex: 1,
     },
@@ -415,7 +527,8 @@ const styles = StyleSheet.create({
     },
     profileHeader: {
         alignItems: 'center',
-        paddingVertical: Spacing.xl,
+        paddingTop: Spacing.lg,
+        paddingBottom: Spacing.xl,
         paddingHorizontal: Spacing.lg,
     },
     username: {
@@ -428,28 +541,48 @@ const styles = StyleSheet.create({
     },
     friendsCount: {
         marginTop: Spacing.base,
+        flexDirection: 'row',
         alignItems: 'center',
+        gap: Spacing.xs,
     },
     friendsNumber: {
-        ...Typography.h2,
-        fontSize: 28,
+        ...Typography.h3,
+        fontSize: 24,
         fontWeight: '700',
     },
     friendsLabel: {
-        ...Typography.bodySmall,
-        marginTop: Spacing.xs / 2,
+        ...Typography.body,
+    },
+    divider: {
+        height: 1,
+        marginHorizontal: Spacing.lg,
+        opacity: 0.3,
     },
     currentlyReadingSection: {
-        paddingVertical: Spacing.lg,
-        paddingLeft: Spacing.lg,
+        paddingTop: Spacing.xl,
+        paddingBottom: Spacing.lg,
+    },
+    sectionHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: Spacing.md,
+        paddingHorizontal: Spacing.lg,
     },
     sectionTitle: {
         ...Typography.h3,
-        marginBottom: Spacing.md,
-        paddingRight: Spacing.lg,
+    },
+    viewMoreButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: Spacing.xs / 2,
+    },
+    viewMoreText: {
+        ...Typography.bodySmall,
+        fontWeight: '600',
     },
     shelfScrollContent: {
-        paddingRight: Spacing.lg,
+        paddingHorizontal: Spacing.lg,
         gap: Spacing.md,
     },
     shelfBookCard: {
@@ -468,24 +601,14 @@ const styles = StyleSheet.create({
         paddingVertical: Spacing.md,
         paddingHorizontal: Spacing.lg,
     },
-    viewAllShelvesButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'flex-end',
-        paddingHorizontal: Spacing.lg,
-        paddingVertical: Spacing.md,
-        gap: Spacing.xs,
-    },
-    viewAllShelvesText: {
-        ...Typography.body,
-        fontWeight: '600',
-    },
     viewSelector: {
         paddingHorizontal: Spacing.lg,
-        marginBottom: Spacing.lg,
+        paddingTop: Spacing.lg,
+        paddingBottom: Spacing.base,
     },
     contentSection: {
         paddingHorizontal: Spacing.lg,
+        paddingTop: Spacing.md,
         minHeight: 400, // Ensures both views take similar space
     },
     loadingContainer: {
@@ -507,46 +630,47 @@ const styles = StyleSheet.create({
         gap: Spacing.md,
     },
     listCard: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
         padding: Spacing.base,
         borderRadius: BorderRadius.md,
         borderWidth: 1,
         ...Shadows.sm,
+        minHeight: 110,
     },
     listCardContent: {
         flex: 1,
-        marginRight: Spacing.md,
+        justifyContent: 'space-between',
     },
-    listCardHeader: {
+    listCardTop: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
         marginBottom: Spacing.xs,
+        gap: Spacing.sm,
     },
     listCardName: {
-        ...Typography.h3,
-        fontSize: 18,
+        fontSize: 16,
+        fontWeight: '600',
         flex: 1,
-        marginRight: Spacing.sm,
     },
-    listCardMeta: {
+    listCardDescription: {
+        ...Typography.bodySmall,
+        fontSize: 13,
+        lineHeight: 18,
+        marginBottom: Spacing.sm,
+        minHeight: 36,
+    },
+    listCardFooter: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: Spacing.sm,
+        justifyContent: 'space-between',
     },
     listCardMetaItem: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: Spacing.xs,
+        gap: Spacing.xs / 2,
     },
     listCardMetaText: {
-        ...Typography.bodySmall,
+        fontSize: 12,
         fontWeight: '600',
-    },
-    listCardDescription: {
-        ...Typography.bodySmall,
-        lineHeight: 18,
     },
 });

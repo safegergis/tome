@@ -66,13 +66,28 @@ public class ReadingSessionController {
 
     /**
      * Get recent reading sessions
+     * If userId is provided, returns that user's sessions (must be public or own)
+     * If userId is not provided, returns authenticated user's sessions
      */
     @GetMapping
     public ResponseEntity<List<ReadingSessionDTO>> getRecentSessions(
+            @RequestParam(required = false) Long userId,
             @RequestParam(defaultValue = "20") int limit) {
-        log.info("GET /api/reading-sessions?limit={}", limit);
-        List<ReadingSessionDTO> sessions = readingSessionService.getRecentSessions(getAuthenticatedUserId(), limit);
-        return ResponseEntity.ok(sessions);
+        Long authenticatedUserId = getAuthenticatedUserId();
+
+        if (userId == null) {
+            // Default behavior: get authenticated user's sessions
+            log.info("GET /api/reading-sessions?limit={} - User {}", limit, authenticatedUserId);
+            List<ReadingSessionDTO> sessions = readingSessionService.getRecentSessions(authenticatedUserId, limit);
+            return ResponseEntity.ok(sessions);
+        } else {
+            // Get specific user's sessions (public only unless requesting own)
+            log.info("GET /api/reading-sessions?userId={}&limit={} - Requested by User {}",
+                    userId, limit, authenticatedUserId);
+            List<ReadingSessionDTO> sessions = readingSessionService.getUserSessions(
+                    authenticatedUserId, userId, limit);
+            return ResponseEntity.ok(sessions);
+        }
     }
 
     /**

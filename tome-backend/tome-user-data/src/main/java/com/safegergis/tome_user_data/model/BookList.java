@@ -2,10 +2,10 @@ package com.safegergis.tome_user_data.model;
 
 import java.time.OffsetDateTime;
 
-import com.safegergis.tome_user_data.enums.ListType;
-
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
+
+import com.safegergis.tome_user_data.enums.ListType;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -52,8 +52,8 @@ public class BookList {
     private Boolean isDefault = false;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "list_type")
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(name = "list_type", columnDefinition = "list_type")
     @Builder.Default
     private ListType listType = ListType.CUSTOM;
 

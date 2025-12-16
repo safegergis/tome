@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { ReadingMethod } from '@/types/reading-session';
-import { Colors, Typography, Spacing, BorderRadius } from '@/constants/theme';
+import { Colors, Typography, Spacing, BorderRadius, Fonts } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 interface ReadingMethodSelectorProps {
@@ -27,7 +27,7 @@ export function ReadingMethodSelector({
   return (
     <View style={styles.container}>
       {label && (
-        <Text style={[styles.label, { color: colors.text }]}>{label}</Text>
+        <Text style={[styles.label, { color: colors.text, fontFamily: Fonts.serif }]}>{label}</Text>
       )}
 
       <View style={styles.segmentedControl}>
@@ -57,6 +57,7 @@ export function ReadingMethodSelector({
                   styles.segmentText,
                   {
                     color: isSelected ? colors.textLight : colors.primary,
+                    fontFamily: Fonts.sans,
                   },
                 ]}
               >

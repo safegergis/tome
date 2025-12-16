@@ -36,6 +36,7 @@ public class ListService {
     private final BookListRepository listRepository;
     private final ListBookRepository listBookRepository;
     private final BookServiceClient bookServiceClient;
+    private final UserServiceClient userServiceClient;
 
     /**
      * Create a new custom list
@@ -54,7 +55,8 @@ public class ListService {
                 .build();
 
         BookList saved = listRepository.save(list);
-        return ListMapper.toDTOWithoutBooks(saved, 0);
+        String username = userServiceClient.getUser(userId).getUsername();
+        return ListMapper.toDTOWithoutBooks(saved, 0, username);
     }
 
     /**
@@ -64,10 +66,41 @@ public class ListService {
     public List<ListDTO> getUserLists(Long userId) {
         List<BookList> lists = listRepository.findByUserIdAndDeletedAtIsNull(userId);
 
+        // Fetch username once for the user
+        String username = userServiceClient.getUser(userId).getUsername();
+
         return lists.stream()
                 .map(list -> {
                     int bookCount = (int) listBookRepository.countByListId(list.getId());
-                    return ListMapper.toDTOWithoutBooks(list, bookCount);
+                    return ListMapper.toDTOWithoutBooks(list, bookCount, username);
+                })
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Get public lists for a user (or all lists if viewing own)
+     * Used when viewing another user's profile
+     *
+     * @param requestingUserId the user making the request
+     * @param targetUserId the user whose lists to retrieve
+     */
+    @Transactional(readOnly = true)
+    public List<ListDTO> getPublicUserLists(Long requestingUserId, Long targetUserId) {
+        log.debug("User {} requesting lists for user {}", requestingUserId, targetUserId);
+
+        List<BookList> lists = listRepository.findByUserIdAndDeletedAtIsNull(targetUserId);
+
+        // Fetch username for the target user
+        String username = userServiceClient.getUser(targetUserId).getUsername();
+
+        // If viewing own lists, return all
+        boolean isOwnProfile = requestingUserId.equals(targetUserId);
+
+        return lists.stream()
+                .filter(list -> isOwnProfile || list.getIsPublic()) // Filter public only for others
+                .map(list -> {
+                    int bookCount = (int) listBookRepository.countByListId(list.getId());
+                    return ListMapper.toDTOWithoutBooks(list, bookCount, username);
                 })
                 .collect(Collectors.toList());
     }
@@ -85,13 +118,16 @@ public class ListService {
             throw new ForbiddenException("Cannot access private list");
         }
 
+        // Fetch username for the list owner
+        String username = userServiceClient.getUser(list.getUserId()).getUsername();
+
         int bookCount = (int) listBookRepository.countByListId(listId);
 
         if (includeBooks) {
             List<BookSummaryDTO> books = getBooksInList(listId);
-            return ListMapper.toDTO(list, books, bookCount);
+            return ListMapper.toDTO(list, books, bookCount, username);
         } else {
-            return ListMapper.toDTOWithoutBooks(list, bookCount);
+            return ListMapper.toDTOWithoutBooks(list, bookCount, username);
         }
     }
 
@@ -131,8 +167,9 @@ public class ListService {
         }
 
         BookList updated = listRepository.save(list);
+        String username = userServiceClient.getUser(userId).getUsername();
         int bookCount = (int) listBookRepository.countByListId(listId);
-        return ListMapper.toDTOWithoutBooks(updated, bookCount);
+        return ListMapper.toDTOWithoutBooks(updated, bookCount, username);
     }
 
     /**
@@ -265,16 +302,19 @@ public class ListService {
             throw new IllegalArgumentException("CUSTOM is not a default list type");
         }
 
+        // Fetch username for the user
+        String username = userServiceClient.getUser(userId).getUsername();
+
         return listRepository.findByUserIdAndListTypeAndIsDefaultTrue(userId, listType.name())
                 .map(list -> {
                     int bookCount = (int) listBookRepository.countByListId(list.getId());
-                    return ListMapper.toDTOWithoutBooks(list, bookCount);
+                    return ListMapper.toDTOWithoutBooks(list, bookCount, username);
                 })
                 .orElseGet(() -> {
                     // Create default list if it doesn't exist
                     log.warn("Default list {} not found for user {}, creating it", listType, userId);
                     BookList newList = createDefaultList(userId, listType);
-                    return ListMapper.toDTOWithoutBooks(newList, 0);
+                    return ListMapper.toDTOWithoutBooks(newList, 0, username);
                 });
     }
 

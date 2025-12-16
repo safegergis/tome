@@ -43,8 +43,9 @@ export default function ShelfDetailScreen() {
     return {
       id: userBook.book.id.toString(),
       title: userBook.book.title,
-      author: userBook.book.authorNames.join(', '),
-      isbn: userBook.book.isbn13 || userBook.book.isbn10 || '',
+      author: userBook.book.authorNames?.join(', ') || 'Unknown Author',
+      isbn10: userBook.book.isbn10,
+      isbn13: userBook.book.isbn13,
       coverUrl: userBook.book.coverUrl,
       progress: userBook.progressPercentage
         ? Math.round(userBook.progressPercentage)

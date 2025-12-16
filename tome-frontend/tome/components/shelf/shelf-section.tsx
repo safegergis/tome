@@ -44,7 +44,7 @@ export function ShelfSection({
     return {
       id: userBook.book.id.toString(),
       title: userBook.book.title,
-      author: userBook.book.authorNames.join(', '),
+      author: userBook.book.authorNames?.join(', ') || 'Unknown Author',
       isbn: userBook.book.isbn13 || userBook.book.isbn10 || '',
       coverUrl: userBook.book.coverUrl,
       progress: userBook.progressPercentage

@@ -15,7 +15,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { Colors, Typography, Spacing, Fonts, BorderRadius, Shadows } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Button } from '@/components/ui/button';
-import { ReviewCard, ReviewData } from '@/components/ui/review-card';
 import { FloatingActionButton } from '@/components/ui/floating-action-button';
 import { ReadingSessionModal } from '@/components/reading-session/reading-session-modal';
 import { AddToListSheet } from '@/components/list/add-to-list-sheet';
@@ -24,34 +23,6 @@ import { bookApi, BookDTO } from '@/services/api';
 import { userBookApi } from '@/services/user-book.service';
 import { UserBookDTO } from '@/types/reading-session';
 import { useAuth } from '@/context/AuthContext';
-
-// Mock reviews - these would come from a reviews API endpoint
-const MOCK_REVIEWS: ReviewData[] = [
-    {
-        id: '1',
-        username: 'BookLover23',
-        rating: 5,
-        date: 'Oct 15, 2024',
-        content:
-            'An absolute masterpiece! The writing is beautiful and the themes are still relevant today. A must-read for anyone interested in American literature.',
-    },
-    {
-        id: '2',
-        username: 'ClassicReader',
-        rating: 4,
-        date: 'Oct 10, 2024',
-        content:
-            'Great book with beautiful prose. The symbolism is rich and the characters are well-developed. Took me a while to get into it but definitely worth the read.',
-    },
-    {
-        id: '3',
-        username: 'ReadingEnthusiast',
-        rating: 5,
-        date: 'Oct 5, 2024',
-        content:
-            'One of my favorite books of all time. Fitzgerald\'s writing style is captivating and the story is both tragic and beautiful.',
-    },
-];
 
 type ReadingStatus = 'none' | 'want-to-read' | 'currently-reading' | 'read' | 'did-not-finish';
 
@@ -68,8 +39,6 @@ export default function BookDetailsScreen() {
     const [userBook, setUserBook] = useState<UserBookDTO | null>(null);
     const [readingStatus, setReadingStatus] = useState<ReadingStatus>('none');
     const [statusUpdating, setStatusUpdating] = useState(false);
-    const [userRating, setUserRating] = useState(0);
-    const [notes, setNotes] = useState('');
     const [sessionModalVisible, setSessionModalVisible] = useState(false);
     const [addToListSheetVisible, setAddToListSheetVisible] = useState(false);
     const [createListModalVisible, setCreateListModalVisible] = useState(false);
@@ -166,43 +135,6 @@ export default function BookDetailsScreen() {
         } finally {
             setStatusUpdating(false);
         }
-    };
-
-    const renderStars = (rating: number) => {
-        return (
-            <View style={styles.starsContainer}>
-                {[1, 2, 3, 4, 5].map((star) => (
-                    <Ionicons
-                        key={star}
-                        name={star <= rating ? 'star' : 'star-outline'}
-                        size={20}
-                        color={star <= rating ? colors.primary : colors.border}
-                        style={styles.star}
-                    />
-                ))}
-            </View>
-        );
-    };
-
-    const renderUserRatingStars = () => {
-        return (
-            <View style={styles.starsContainer}>
-                {[1, 2, 3, 4, 5].map((star) => (
-                    <TouchableOpacity
-                        key={star}
-                        onPress={() => setUserRating(star)}
-                        activeOpacity={0.7}
-                    >
-                        <Ionicons
-                            name={star <= userRating ? 'star' : 'star-outline'}
-                            size={32}
-                            color={star <= userRating ? colors.primary : colors.border}
-                            style={styles.star}
-                        />
-                    </TouchableOpacity>
-                ))}
-            </View>
-        );
     };
 
     const getStatusButtonStyle = (status: ReadingStatus) => {
@@ -344,34 +276,8 @@ export default function BookDetailsScreen() {
                     </View>
                 </View>
 
-                {/* Publication Details */}
-                <View style={[styles.section, { backgroundColor: colors.surface }]}>
-                    <Text style={[styles.sectionTitle, { color: colors.text, fontFamily: Fonts.serif }]}>
-                        Details
-                    </Text>
-                    {book.publishedDate && (
-                        <View style={styles.detailRow}>
-                            <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Published:</Text>
-                            <Text style={[styles.detailValue, { color: colors.text }]}>{book.publishedDate}</Text>
-                        </View>
-                    )}
-                    {book.pageCount && (
-                        <View style={styles.detailRow}>
-                            <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Pages:</Text>
-                            <Text style={[styles.detailValue, { color: colors.text }]}>{book.pageCount}</Text>
-                        </View>
-                    )}
-                    <View style={styles.detailRow}>
-                        <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>ISBN:</Text>
-                        <Text style={[styles.detailValue, { color: colors.text }]}>{isbn}</Text>
-                    </View>
-                    {book.publisher && (
-                        <View style={styles.detailRow}>
-                            <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Publisher:</Text>
-                            <Text style={[styles.detailValue, { color: colors.text }]}>{book.publisher}</Text>
-                        </View>
-                    )}
-                </View>
+                {/* Divider */}
+                <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
                 {/* Description */}
                 {book.description && (
@@ -386,6 +292,9 @@ export default function BookDetailsScreen() {
                         </Text>
                     </View>
                 )}
+
+                {/* Divider */}
+                <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
                 {/* Reading Status */}
                 <View style={styles.section}>
@@ -424,35 +333,38 @@ export default function BookDetailsScreen() {
                     />
                 </View>
 
-                {/* User Rating */}
-                <View style={styles.section}>
-                    <Text style={[styles.sectionTitle, { color: colors.text, fontFamily: Fonts.serif }]}>
-                        Your Rating
-                    </Text>
-                    {renderUserRatingStars()}
-                    {userRating > 0 && (
-                        <Text style={[styles.ratingLabel, { color: colors.textSecondary }]}>
-                            You rated this book {userRating} stars
-                        </Text>
-                    )}
-                </View>
+                {/* Divider */}
+                <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
-                {/* Reviews Section */}
+                {/* Publication Details Capsule */}
                 <View style={styles.section}>
-                    <View style={styles.reviewsHeader}>
-                        <Text style={[styles.sectionTitle, { color: colors.text, fontFamily: Fonts.serif }]}>
-                            Community Reviews
+                    <View style={[styles.detailsCapsule, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                        <Text style={[styles.sectionTitle, { color: colors.text, fontFamily: Fonts.serif, marginBottom: Spacing.md }]}>
+                            Details
                         </Text>
-                        <TouchableOpacity activeOpacity={0.7}>
-                            <Text style={[styles.seeAllText, { color: colors.primary }]}>
-                                See All
-                            </Text>
-                        </TouchableOpacity>
+                        {book.publishedDate && (
+                            <View style={styles.detailRow}>
+                                <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Published</Text>
+                                <Text style={[styles.detailValue, { color: colors.text }]}>{book.publishedDate}</Text>
+                            </View>
+                        )}
+                        {book.pageCount && (
+                            <View style={styles.detailRow}>
+                                <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Pages</Text>
+                                <Text style={[styles.detailValue, { color: colors.text }]}>{book.pageCount}</Text>
+                            </View>
+                        )}
+                        <View style={styles.detailRow}>
+                            <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>ISBN</Text>
+                            <Text style={[styles.detailValue, { color: colors.text }]}>{isbn}</Text>
+                        </View>
+                        {book.publisher && (
+                            <View style={styles.detailRow}>
+                                <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Publisher</Text>
+                                <Text style={[styles.detailValue, { color: colors.text }]}>{book.publisher}</Text>
+                            </View>
+                        )}
                     </View>
-
-                    {MOCK_REVIEWS.map((review) => (
-                        <ReviewCard key={review.id} review={review} />
-                    ))}
                 </View>
             </ScrollView>
 
@@ -460,6 +372,7 @@ export default function BookDetailsScreen() {
             <FloatingActionButton
                 onPress={() => setSessionModalVisible(true)}
                 bottom={Spacing.lg}
+                right={Spacing.lg}
             />
 
             {/* Reading Session Modal */}
@@ -563,26 +476,6 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         marginBottom: Spacing.base,
     },
-    ratingContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: Spacing.md,
-    },
-    starsContainer: {
-        flexDirection: 'row',
-    },
-    star: {
-        marginHorizontal: 2,
-    },
-    ratingText: {
-        ...Typography.bodySmall,
-        marginLeft: Spacing.sm,
-    },
-    ratingLabel: {
-        ...Typography.bodySmall,
-        marginTop: Spacing.sm,
-        textAlign: 'center',
-    },
     genres: {
         flexDirection: 'row',
         flexWrap: 'wrap',
@@ -599,13 +492,25 @@ const styles = StyleSheet.create({
         ...Typography.caption,
         fontWeight: '600',
     },
+    divider: {
+        height: 1,
+        marginHorizontal: Spacing.lg,
+        marginVertical: Spacing.lg,
+        opacity: 0.3,
+    },
     section: {
-        marginTop: Spacing.lg,
+        marginTop: Spacing.base,
         paddingHorizontal: Spacing.lg,
     },
     sectionTitle: {
         ...Typography.h3,
         marginBottom: Spacing.base,
+    },
+    detailsCapsule: {
+        padding: Spacing.lg,
+        borderRadius: BorderRadius.lg,
+        borderWidth: 1,
+        ...Shadows.sm,
     },
     detailRow: {
         flexDirection: 'row',
@@ -635,16 +540,6 @@ const styles = StyleSheet.create({
         ...Typography.bodySmall,
         marginTop: Spacing.sm,
         fontStyle: 'italic',
-    },
-    reviewsHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: Spacing.base,
-    },
-    seeAllText: {
-        ...Typography.bodySmall,
-        fontWeight: '600',
     },
     centerContainer: {
         flex: 1,

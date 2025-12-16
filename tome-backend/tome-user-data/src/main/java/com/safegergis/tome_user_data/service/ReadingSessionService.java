@@ -191,6 +191,31 @@ public class ReadingSessionService {
     }
 
     /**
+     * Get reading sessions for a specific user (viewable by others)
+     * For MVP, all sessions are public. Future: add privacy controls.
+     *
+     * @param requestingUserId the user making the request
+     * @param targetUserId the user whose sessions to retrieve
+     * @param limit maximum number of sessions to return
+     */
+    @Transactional(readOnly = true)
+    public List<ReadingSessionDTO> getUserSessions(Long requestingUserId, Long targetUserId, int limit) {
+        log.debug("User {} requesting sessions for user {} (limit: {})",
+                requestingUserId, targetUserId, limit);
+
+        // For now, all sessions are public (MVP)
+        // Future: filter by privacy settings
+        List<ReadingSession> sessions = sessionRepository.findRecentByUserId(targetUserId, PageRequest.of(0, limit));
+
+        return sessions.stream()
+                .map(session -> {
+                    BookSummaryDTO book = bookServiceClient.getBook(session.getBookId());
+                    return ReadingSessionMapper.toDTO(session, book);
+                })
+                .collect(Collectors.toList());
+    }
+
+    /**
      * Get all sessions for a specific book
      */
     @Transactional(readOnly = true)

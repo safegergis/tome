@@ -90,6 +90,32 @@ export const readingSessionApi = {
     },
 
     /**
+     * Get reading sessions for a specific user
+     * @param userId - ID of the user whose sessions to fetch
+     * @param token - JWT authentication token
+     * @param limit - Number of sessions to fetch (default: 20)
+     * @returns Array of public reading sessions for the specified user
+     *
+     * Note: Backend endpoint needs to be implemented
+     * GET /api/reading-sessions?userId={id}&limit={n}
+     */
+    getUserSessions: async (
+        userId: number,
+        token: string,
+        limit: number = 20
+    ): Promise<ReadingSessionDTO[]> => {
+        console.log('[readingSessionApi] Fetching sessions for user:', userId, 'limit:', limit);
+
+        const result = await apiClient.authenticatedFetch<ReadingSessionDTO[]>(
+            `${READING_SESSION_API_URL}/reading-sessions?userId=${userId}&limit=${limit}`,
+            token
+        );
+
+        console.log('[readingSessionApi] Fetched', result.length, 'sessions for user', userId);
+        return result;
+    },
+
+    /**
      * Search for books (for book picker)
      * @param query - Search query string
      * @param token - JWT authentication token
@@ -99,15 +125,22 @@ export const readingSessionApi = {
         console.log('[readingSessionApi] Searching books:', query);
 
         // Note: This calls the tome-content service book search endpoint
-        const result = await apiClient.authenticatedFetch<any[]>(
+        const result = await apiClient.authenticatedFetch<any>(
             `${ENV.CONTENT_API_URL}/books/search?q=${encodeURIComponent(query)}`,
             token
         );
 
-        console.log('[readingSessionApi] Found', result.length, 'books');
+        // Handle empty or invalid response
+        if (!result || !result.content || !Array.isArray(result.content)) {
+            console.warn('[readingSessionApi] Invalid response from search endpoint:', result);
+            return [];
+        }
+
+        const books = result.content;
+        console.log('[readingSessionApi] Found', books.length, 'books');
 
         // Transform BookDTO to UserBookDTO format for consistency
-        return result.map((book: any) => ({
+        return books.map((book: any) => ({
             id: 0, // Not a user book yet
             bookId: book.id,
             book: {

@@ -130,8 +130,7 @@ export default function SearchScreen() {
     };
 
     const handleUserPress = (userId: number) => {
-        // Future: navigate to user profile
-        console.log('User pressed:', userId);
+        router.push(`/users/${userId}`);
     };
 
     const renderEmptyState = () => {
@@ -181,7 +180,8 @@ export default function SearchScreen() {
                 book={{
                     id: item.id.toString(),
                     title: item.title,
-                    isbn: item.isbn10 as string,
+                    isbn10: item.isbn10,
+                    isbn13: item.isbn13,
                     author: authors,
                     coverUrl: item.coverUrl,
                 }}

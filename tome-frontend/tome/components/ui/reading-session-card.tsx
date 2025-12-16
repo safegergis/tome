@@ -114,29 +114,29 @@ export function ReadingSessionCard({
             {session.book.title}
           </Text>
           <Text
-            style={[styles.author, { color: colors.textSecondary }]}
+            style={[styles.author, { color: colors.textSecondary, fontFamily: Fonts.serif }]}
             numberOfLines={1}
           >
-            by {session.book.authorNames.join(', ')}
+            by {session.book.authorNames?.join(', ') || 'Unknown Author'}
           </Text>
 
           {/* Method and Progress */}
           <View style={styles.metadata}>
-            <Ionicons name={methodIcon} size={16} color={colors.primary} />
-            <Text style={[styles.metadataText, { color: colors.textSecondary }]}>
+            <Ionicons name={methodIcon} size={14} color={colors.primary} />
+            <Text style={[styles.metadataText, { color: colors.textSecondary, fontFamily: Fonts.sans }]}>
               {methodLabel} • {progressText}
             </Text>
           </View>
 
           {/* Date */}
-          <Text style={[styles.date, { color: colors.textSecondary }]}>
+          <Text style={[styles.date, { color: colors.textSecondary, fontFamily: Fonts.sans }]}>
             {formattedDate}
           </Text>
 
           {/* Notes Preview */}
           {session.notes && (
             <Text
-              style={[styles.notes, { color: colors.text }]}
+              style={[styles.notes, { color: colors.text, fontFamily: Fonts.serif }]}
               numberOfLines={2}
             >
               "{session.notes}"
@@ -152,58 +152,64 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: BorderRadius.md,
     borderWidth: 1,
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.sm,
     ...Shadows.sm,
   },
   container: {
     flexDirection: 'row',
-    padding: Spacing.base,
+    padding: Spacing.md,
   },
   coverContainer: {
-    marginRight: Spacing.base,
+    marginRight: Spacing.md,
   },
   cover: {
-    width: 60,
-    height: 90,
+    width: 50,
+    height: 75,
     borderRadius: BorderRadius.sm,
   },
   coverPlaceholder: {
-    width: 60,
-    height: 90,
+    width: 50,
+    height: 75,
     borderRadius: BorderRadius.sm,
     alignItems: 'center',
     justifyContent: 'center',
   },
   coverPlaceholderText: {
-    ...Typography.h2,
+    fontSize: 24,
+    fontWeight: '700',
   },
   details: {
     flex: 1,
+    justifyContent: 'center',
   },
   title: {
-    ...Typography.h3,
-    fontSize: 16,
-    marginBottom: Spacing.xs,
+    ...Typography.body,
+    fontSize: 15,
+    fontWeight: '600',
+    marginBottom: 3,
   },
   author: {
     ...Typography.bodySmall,
+    fontSize: 13,
     marginBottom: Spacing.xs,
   },
   metadata: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: Spacing.xs,
+    marginBottom: 2,
   },
   metadataText: {
     ...Typography.bodySmall,
-    marginLeft: Spacing.xs,
+    fontSize: 12,
+    marginLeft: Spacing.xs / 2,
   },
   date: {
     ...Typography.caption,
-    marginBottom: Spacing.xs,
+    fontSize: 11,
   },
   notes: {
     ...Typography.bodySmall,
+    fontSize: 12,
     fontStyle: 'italic',
     marginTop: Spacing.xs,
   },

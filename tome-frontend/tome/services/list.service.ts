@@ -11,13 +11,19 @@ const LISTS_API_URL = `${ENV.USER_DATA_API_URL}/lists`;
 
 export const listApi = {
   /**
-   * Get all lists for authenticated user
+   * Get all lists for authenticated user or another user's public lists
+   * @param token - Authentication token
+   * @param userId - Optional user ID to fetch public lists for another user
    */
-  getUserLists: async (token: string): Promise<ListDTO[]> => {
-    console.log('[listApi] Fetching user lists');
+  getUserLists: async (token: string, userId?: number): Promise<ListDTO[]> => {
+    const url = userId
+      ? `${LISTS_API_URL}?userId=${userId}`
+      : LISTS_API_URL;
+
+    console.log('[listApi] Fetching user lists', userId ? `for user ${userId}` : '');
 
     const result = await apiClient.authenticatedFetch<ListDTO[]>(
-      LISTS_API_URL,
+      url,
       token
     );
 

@@ -95,7 +95,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#000000',
   },
   menuContainer: {
-    paddingHorizontal: 16,
+    paddingRight: 16,
     paddingBottom: 100, // Position above FAB
+    alignItems: 'flex-end',
   },
 });

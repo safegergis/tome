@@ -54,7 +54,7 @@ export function DraggableBookList({
                                 {item.title}
                             </Text>
                             <Text style={[styles.bookAuthor, { color: colors.textSecondary }]} numberOfLines={1}>
-                                {item.authorNames.join(', ') || 'Unknown Author'}
+                                {item.authorNames?.join(', ') || 'Unknown Author'}
                             </Text>
                         </View>
 

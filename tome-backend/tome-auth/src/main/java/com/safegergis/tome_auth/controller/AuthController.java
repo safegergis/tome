@@ -5,8 +5,10 @@ import com.safegergis.tome_auth.dto.LoginResponse;
 import com.safegergis.tome_auth.dto.RegisterRequest;
 import com.safegergis.tome_auth.dto.RegisterResponse;
 import com.safegergis.tome_auth.dto.UserDTO;
+import com.safegergis.tome_auth.dto.UserProfileDTO;
 import com.safegergis.tome_auth.dto.VerifyEmailRequest;
 import com.safegergis.tome_auth.service.UserService;
+import com.safegergis.tome_auth.service.UserDataServiceClient;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,6 +26,7 @@ import java.util.Map;
 public class AuthController {
 
     private final UserService userService;
+    private final UserDataServiceClient userDataServiceClient;
 
     @PostMapping("/register")
     public ResponseEntity<RegisterResponse> register(@Valid @RequestBody RegisterRequest request) {
@@ -66,5 +69,22 @@ public class AuthController {
         log.info("User search request received with query: {}", q);
         List<UserDTO> users = userService.searchUsers(q);
         return ResponseEntity.ok(users);
+    }
+
+    /**
+     * GET /api/auth/users/{id} - Get user profile with friends count
+     * Requires authentication (Bearer token)
+     */
+    @GetMapping("/users/{id}")
+    public ResponseEntity<UserProfileDTO> getUserProfile(
+            @PathVariable Long id,
+            @RequestHeader("Authorization") String authHeader) {
+        log.info("User profile request received for user ID: {}", id);
+
+        // Extract token from Authorization header (Bearer <token>)
+        String token = authHeader.substring(7); // Remove "Bearer " prefix
+
+        UserProfileDTO profile = userService.getUserProfile(id, token, userDataServiceClient);
+        return ResponseEntity.ok(profile);
     }
 }

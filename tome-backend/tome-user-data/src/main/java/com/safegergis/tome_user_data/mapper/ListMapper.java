@@ -15,7 +15,7 @@ public class ListMapper {
      * Convert BookList entity to DTO
      * Book summaries are optional and can be null
      */
-    public static ListDTO toDTO(BookList list, List<BookSummaryDTO> books, Integer bookCount) {
+    public static ListDTO toDTO(BookList list, List<BookSummaryDTO> books, Integer bookCount, String username) {
         if (list == null) {
             return null;
         }
@@ -23,6 +23,7 @@ public class ListMapper {
         return ListDTO.builder()
                 .id(list.getId())
                 .userId(list.getUserId())
+                .username(username)
                 .name(list.getName())
                 .description(list.getDescription())
                 .isPublic(list.getIsPublic())
@@ -38,7 +39,7 @@ public class ListMapper {
     /**
      * Convert BookList entity to DTO without books
      */
-    public static ListDTO toDTOWithoutBooks(BookList list, Integer bookCount) {
-        return toDTO(list, null, bookCount);
+    public static ListDTO toDTOWithoutBooks(BookList list, Integer bookCount, String username) {
+        return toDTO(list, null, bookCount, username);
     }
 }
